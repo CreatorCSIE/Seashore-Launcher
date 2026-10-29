@@ -1,8 +1,8 @@
-<p align="center"><img src="docs/banner.png" alt="Seashore Launcher banner" width="100%"/></p>
-
 # Seashore-Launcher
 
 > 远古 Minecraft（Pre-Classic → b1.8/1.5.2）Android 特化启动器 —— **调研期**。
+
+<p align="center"><img src="docs/banner.png" alt="Seashore Launcher banner" width="100%"/></p>
 
 ## 定位
 
