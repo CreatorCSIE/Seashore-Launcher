@@ -13,12 +13,12 @@
 
 ## 状态
 
-- [ ] 调研期。调研纪要见 [research/qcl-android-shell.md](research/qcl-android-shell.md)。
-- [ ] 闸门一：`-javaagent:legacyfix.jar` 塞进 QCL/FCL 启动参数跑 b1.7.3/infdev，读 `Patches:` 状态表（验证 legacyfix 修复语义在 Android 的存活面）。
+- [x] 调研期 → **Phase 0 已收口（2026-10-31）**。调研纪要见 [research/qcl-android-shell.md](research/qcl-android-shell.md)，施工计划见 [plan.md](plan.md)。
+- [x] 闸门一：`-javaagent:legacyfix.jar` 塞进 QCL/FCL 启动参数跑 b1.7.3/infdev，读 `Patches:` 状态表（验证 legacyfix 修复语义在 Android 的存活面）。**已闭环**：存活面收敛为游戏侧补丁+网络代理，渲染层零触碰（§14）；LW 注入路径取证与解耦拍板见 §16。
 - [ ] 闸门二：减法可行性审计——现代/远古在启动主链的分支点依赖图证据。
 - **开发/测试平台**：x86_64 AVD 主力开发台（`abiFilters 'x86_64'`、零 NDK）；真机 = 发版 sanity，非前置门槛（决策全量见调研纪要 §9）。
 - [ ] **渲染器线（新立）**：不等 QCL 自研，先用现有 GL4ES 攻其"远古版颜色异常天花板"（三渲染器对照复现 + EGLConfig 取证，见调研纪要 §10）；自研作后续。
-- [ ] plan.md 待调研收敛后建立（目前不落）。
+- [x] plan.md 已落盘（Phase 0 收口 + Phase 1 脚手架 + Phase 2 减法大概），见 [plan.md](plan.md)。
 
 ## 上游参考（`reference/`，gitignore 不入库）
 
