@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/item"
+        android:clickable="true"
+        android:padding="3dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/launcher_button_gray_blue"
+        android:orientation="horizontal"
+        android:focusable="true">
+
+        <ImageView
+            android:src="@drawable/launcher_background_color_white"
+            android:layout_gravity="center"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:scaleType="centerInside"
+            android:id="@+id/mod_icon"/>
+
+        <LinearLayout
+            android:layout_marginStart="10dp"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textColor="@color/colorPureBlack"
+                    android:id="@+id/mod_name"/>
+
+                <TextView
+                    android:tag="text_primary_color"
+                    android:layout_marginStart="10dp"
+                    android:layout_gravity="center"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textSize="@dimen/text_size_small"
+                    android:textColor="@color/colorAccent"
+                    android:id="@+id/mod_categories"/>
+                  <!-- ★★★ 2026-10-25（1.5.5）：来源徽标（CurseForge / Modrinth）。
+                       照 FCL 的列表：聚合搜索时两站的结果并排显示，必须一眼看出这条来自哪站。 -->
+                    <TextView
+                        android:layout_marginStart="6dp"
+                        android:layout_gravity="center"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true"
+                        android:ellipsize="end"
+                        android:textSize="10sp"
+                        android:textColor="@color/colorLightWhite"
+                        android:id="@+id/mod_source"/>
+
+            </LinearLayout>
+
+            <!-- ★★★★★ 2026-10-11 修（用户实测「模组的描述文字是黑色的，没有统一到主题色，
+                 而且不随昼夜变化」）：
+                 这里**漏写了 android:textColor** ⇒ 用系统默认深色（黑）⇒
+                 深色背景下几乎看不见、夜间更看不见。
+                 与上面 mod_name 保持同一口径：用 colorPureBlack
+                 （该色在 values-night 里是 #FFFFFFFF ⇒ 自动随昼夜翻转）。 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:textSize="10sp"
+                android:textColor="@color/colorLightWhite"
+                android:id="@+id/mod_introduction"/>
+
+        </LinearLayout>
+
+        <!-- ★ 2026-10-09 用户要求：下载资源收藏（照 FCL 的收藏功能，用 ★/☆ 免得新增图标资源） -->
+        <TextView
+            android:id="@+id/mod_favorite"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="6dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textSize="15sp"
+            android:textColor="@color/colorAccent"
+            android:text="☆"/>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ★★★★★ 1.5.2 修正（用户要求）：
+          「末日斑驳森林的颜色，主题色白天能不能取斑驳森林真实的颜色，别取那个水的颜色了」。
+          ★ 1.5.0 当初用的是 #865D58 —— 依据是 Minecraft Wiki 里 Pale Garden 的
+            **water fog color（水的雾色）**。那确实是"水"的颜色，不是森林本身的色调。
+          ⇒ 现在改成从**实际壁纸** ic_background.jpg（斑驳森林 2560x1600）实测取样：
+              整体平均色 #7D5753 / 中间调平均 #865D58
+            → 取 #865D58（略亮一档，保证按钮/勾选框在深浅底上都看得见）。
+          对照：经典背景 ic_background_classic.jpg 中间调是 #1E3441（深蓝），
+               所以原来的蓝灰其实更接近"经典"那张图。
+          注意：colorAccent 是默认主题色的真正来源（ExteriorSettingUI.getThemeColor 的 fallback），
+          存量用户配置里存的是 "DEFAULT" 字符串 → 会自动跟着变，无需迁移。 -->
+    <color name="colorPrimary">#865D58</color>
+    <color name="colorSecondary">#283593</color>
+    <color name="colorThird">#43A047</color>
+    <color name="colorForth">#E67E22</color>
+    <color name="colorFifth">#9C27B0</color>
+    <color name="colorSixth">#B71C1C</color>
+    <color name="colorPrimaryDark">#CB4A4A4A</color>
+    <color name="colorAccent">#865D58</color>
+
+    <color name="colorTransparent">#00FFFFFF</color>
+    <color name="colorPureWhite">#FFFFFF</color>
+    <color name="colorPureBlack">#000000</color>
+    <color name="colorLightWhite">#99FFFFFF</color>
+    <color name="colorShallowWhite">#40FFFFFF</color>
+    <color name="colorDarkGray">#40000000</color>
+    <color name="colorGray">#1A000000</color>
+    <!-- QCL：柔和的灰（面板为不透明） -->
+    <!-- 1.0.6：原来 #B8CFCFCF 偏暗（中灰 + 72% 不透明），大块面板压上去整屏发灰。
+         现提亮到接近白的高亮灰，并降低不透明度，让动态背景的亮色透上来。 -->
+    <color name="qcl_panel_gray">#C8EDEDED</color>
+    <color name="qcl_panel_gray_alt">#C0E3E3E3</color>
+    <color name="qcl_gray_translucent">#00000000</color>
+    <color name="qcl_gray_translucent_bar">#00000000</color>
+    <color name="colorLightGray">#0D000000</color>
+    <color name="colorWhiteGray">#E3E3E3</color>
+    <color name="colorLightBlue">#655C6BC0</color>
+    <color name="colorGreen">#3DFF2C</color>
+    <color name="colorYellow">#F0FF00</color>
+    <color name="colorRed">#FF0000</color>
+    <color name="colorLinkBlue">#0E9384</color>
+    <color name="colorLinkBlueDark">#0A5F55</color>
+    <color name="colorTextBlue">#D5F1FF</color>
+    <color name="colorStartRockerBlue">#1A00C4FF</color>
+    <color name="colorEndRockerBlue">#3300C4FF</color>
+    <color name="colorBrown">#835300</color>
+
+    <!-- 1.0.6：同步提亮，与 qcl_panel_gray 保持一致 -->
+    <color name="launcher_ui_background">#00000000</color>
+    <color name="launcher_ui_background_light">#BCE6E6E6</color>
+    <color name="colorPressed">#BDBDBD</color>
+
+    <!-- ★ 1.5.0：对话框面板底色。浅色态 = 白；夜间在 values-night 里覆盖为实心深色。
+         必须两个目录都有同名定义，否则某个模式下会找不到资源。 -->
+    <color name="qcl_dialog_night_bg">#FFFFFFFF</color>
+
+    <!-- ★★★ 1.5.0：**新排版左右栏底板**（用户要求「日间模式下图标/文字不再糊在壁纸上」）。
+         背景：左侧导航栏与右侧面板原先完全没有底板（qcl_button_gray 是全透明，
+         qcl_gray_translucent_bar 也是 #00000000），图标直接浮在动态壁纸上：
+         · 夜间壁纸暗 → 白色图标清晰；
+         · 日间壁纸亮 → 白图标 + 深色文字全糊，基本看不清。
+         ⇒ 加一层**半透明**底板：既保证对比度，又让壁纸透上来（不破坏动态背景观感）。
+         ★ 昼夜成对：日间浅色板 + 深色图标/文字 ↔ 夜间深色板 + 白色图标/文字。
+         不透明度取 B3(70%)：既能压住壁纸亮部，又不至于把壁纸盖死。 -->
+    <color name="qcl_nav_panel_bg">#B3EDEDED</color>
+    <!-- 同色系按下态（比常态略深，压在浅底上有反馈） -->
+    <color name="qcl_nav_panel_bg_pressed">#CCD8D8D8</color>
+    <!-- ★★★ 1.5.0：**右侧账号卡片 / 版本行的文字色**（昼夜成对翻转）。
+         原先用 colorPureWhite / colorLightWhite —— 这两个在日间模式下都是白色系，
+         压在明亮壁纸上完全看不见（用户实测指出）。这里另立一对专用色：
+           · 日间：近黑（#E6000000 / #99000000）
+           · 夜间：白色（#FFFFFFFF / #B3FFFFFF），见 values-night。
+         为什么不直接复用 colorPureBlack？因为 colorPureBlack 被 946 个布局当正文色，
+         语义太泛；这里要的是「跟着底板翻转的次级文字色」，单独立名更清晰、也不会误伤别处。 -->
+    <color name="qcl_nav_text_primary">#E6000000</color>
+    <color name="qcl_nav_text_secondary">#99000000</color>
+    <!-- ★★★ 1.5.0：右侧「启动区块」底板（照 FCL start 区块的观感）。
+         极淡、圆角，只用来提升昼夜两态下的文字对比度，不做成明显卡片。
+         日间：淡白（把亮壁纸压亮，深色字清晰）；夜间见 values-night。 -->
+    <color name="qcl_launch_block_bg">#4DFFFFFF</color>
+
+    <!-- ★★★ 1.5.0：**版本列表容器底**（用户：「进版本列表全是白的，没有半透明」）。
+         原先 `qcl_dialog_gray` 是**不透明**的 #E6E9E9E9，把动态壁纸整个盖死 →
+         日间看就是一大片"白"（其实是浅灰），且完全不透。
+         现在改成昼夜成对的**半透明**色（约 62%），既保证列表项文字可读，
+         又让壁纸透上来（与其余页面的半透明风格统一）。
+         日间：近白半透明；夜间：深色半透明（见 values-night）。 -->
+    <color name="qcl_version_list_bg">#9EEDEDED</color>
+
+    <!-- ★★★ 1.5.0 用户要求：「把那些白色按钮全部转为深色，除了字不转」。
+     底色**日夜都是深色**，文字**日夜都是浅色**（不跟着底色变暗）⇒ 深底浅字，白天夜里都清晰。
+     ★ 底色本身不再写死，而是引用主题 `?android:attr/colorAccent`（见 drawable/qcl_dialog_button.xml）
+       —— 这样既跟随昼夜/主题，也是玩家在设置里能自定义的主题色。
+       这三个色只剩「按下态」和「文字色」需要定义。
+       配套 drawable/ + drawable-night/ 成对文件都必须存在。 -->
+    <color name="qcl_dialog_btn_pressed">#FF1E2833</color>
+    <!-- ★ 深色兜底底色：drawable 里用它，运行时代码再 setTint 成玩家主题色。
+         取值就是主题色 colorAccent 的斑驳森林 #865D58（日夜都成立），保证绝不会渲染成白块。 -->
+    <color name="qcl_dialog_btn_fallback">#FF865D58</color>
+    <color name="qcl_dialog_btn_text">#FFF2F6FA</color>
+</resources>

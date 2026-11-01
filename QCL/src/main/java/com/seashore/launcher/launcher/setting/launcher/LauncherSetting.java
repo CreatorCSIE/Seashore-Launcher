@@ -1,0 +1,130 @@
+package com.seashore.launcher.launcher.setting.launcher;
+
+import com.seashore.launcher.launcher.setting.launcher.child.BackgroundSetting;
+import com.seashore.launcher.launcher.setting.launcher.child.SourceSetting;
+
+/* loaded from: classes2.dex */
+public class LauncherSetting {
+    /** ★ 1.2.3：界面背景是否透明（默认全透明；关掉恢复原来的灰色面板） */
+    public boolean transparentBackground = true;
+    public boolean autoCheckUpdate;
+    public boolean autoDownloadTaskQuantity;
+    public String cachePath;
+    public SourceSetting downloadUrlSource;
+    public boolean fullscreen;
+    public String gameFileDirectory;
+    public boolean getBetaVersion;
+    public int language;
+    public BackgroundSetting launcherBackground;
+    public String launcherTheme;
+    public int maxDownloadTask;
+    public String panelColor;
+
+    /**
+     * ★★★★★ 1.5.2 新增：**启动等待界面（游戏加载画面）的 6 张背景图**。
+     *
+     * <p>用户需求：「等待界面的轮播根本没有在外观里加选择图片来切换按钮，
+     * 把 6 张图片展示出来，点击自定义按钮之后把 6 张图片展示出来，
+     * 然后点击想要换的那个图片」。
+     *
+     * <p>长度固定 6（对应 {@code LayoutPanel.BG_RES_IDS} 的 6 格）；
+     * 某格为 null/空/文件不存在 ⇒ 该格**回退内置图**（不会变黑）。
+     */
+    public String[] waitBgPaths;
+
+    // ★★★★★ 1.5.2：`transBar`（透明标题栏）字段**已彻底删除**。
+    //   用户原话：「那个透明开关本身没用，开了也等于白开」。
+    //   ★ 取证：删除前全工程只有「字段定义」和「构造里 this.transBar = z5」两处，
+    //     **没有任何一行代码读它** ⇒ 这个开关从头到尾就没起过作用。
+    //   ★ 标题栏透明真正的实现是 values/themes.xml 的 android:windowFullscreen=true，
+    //     那个**没动**（git status 可证）。
+    //   ★ 旧配置文件里残留的 "transBar" 键会被 Gson 当未知字段忽略，不影响启动。
+
+    /**
+     * ★★★★★ 2026-10-16 新增：**自定义字体颜色**
+     * （用户要求「在外观那里加一个字体颜色自定义调节功能」）。
+     *
+     * <p>存 {@code #AARRGGBB} / {@code #RRGGBB} 字符串；
+     * {@code null} / 空 / {@code "DEFAULT"} 都表示**跟随主题**
+     * （= 旧行为：日间黑字、夜间白字），此时不做任何运行时着色。
+     *
+     * <p>Gson 走 Unsafe 分配 ⇒ 老存档里没有这个键时读出 {@code null} = 跟随主题，
+     * 正好是我们要的默认行为，不需要额外的 chosen 标记。
+     */
+    public String fontColor;
+    /**
+     * ★ 1.3.7 / ★★★ 1.5.0 改默认值：主界面是否显示账号人物。
+     *
+     * <p>★ 用户明确要求：**默认关闭**（原来默认开）。
+     * 关闭时主界面不显示 3D 人物，「人物动作」选择项也随之不可用。
+     *
+     * <p>★ Gson 反序列化走 Unsafe 分配 → **字段初始值不执行**，
+     * 所以老玩家的 launcher_setting.json 里没这个键时读出来就是 `false`（= 关闭），
+     * 恰好就是我们要的默认行为，不需要额外加 chosen 标记。
+     * 已在设置里手动开过的玩家 json 里存的是 `true`，不受影响。
+     */
+    public boolean showAccountModel = false;
+    /**
+     * ★★★ 1.5.0：3D 人物的**动作**（用户：「目前只有走路动作，能不能添加更多」）。
+     *
+     * <p>取值见 {@link com.seashore.launcher.skin.MinecraftSkinRenderer} 的 ANIM_* 常量：
+     * 0=站立 1=走路 2=跑步 3=旋转 4=挥手。
+     *
+     * <p>★ 用户明确要求：**默认关闭**（= 站立不动，不再一直走路）。
+     * 所以默认值取 {@code ANIM_IDLE(0)} 而不是原来的走路。
+     *
+     * <p>★ Gson 走 Unsafe 分配 → 字段初始值不执行，老配置读出来是 0 = 站立，
+     * 恰好就是我们要的默认值，不需要额外的 chosen 标记。
+     */
+    public int accountModelAnim = 0;
+    /**
+     * ★★★ 1.5.0：**排版风格**。0 = 旧排版（顶部横排入口），1 = 新排版（左侧竖向导航）。
+     *
+     * <p>★ 注意它**不能单独看** —— 必须配合 {@link #uiStyleChosen}：
+     * {@code LauncherSetting} 没有无参构造，Gson 反序列化走的是 Unsafe 分配，
+     * **字段初始值不会执行**，老玩家的 json 里没这个键 → 读出来就是 0（= 旧排版）。
+     * 所以用 {@link #uiStyleChosen} 区分「玩家真的选了旧排版」和「老配置没这个键」。
+     *
+     * <p>取用请一律走 {@link #useNewLayout()}，不要直接读这个字段。
+     */
+    public int uiStyle;
+    /** ★ 1.5.0：玩家是否**真的**在「外观」里选过排版。老配置里没这个键 → false。 */
+    public boolean uiStyleChosen;
+
+    /**
+     * ★ 1.5.0：是否使用新排版。
+     * 老配置（{@code uiStyleChosen=false}）→ **默认新排版**（1.5.0 的主打界面）；
+     * 玩家手动选过 → 以 {@link #uiStyle} 为准。
+     */
+    public boolean useNewLayout() {
+        return !this.uiStyleChosen || this.uiStyle == 1;
+    }
+
+    /**
+     * ★ 1.4.5：玩家累计启动游戏的次数（每次点「启动游戏」+1，存进 launcher_setting.json）。
+     */
+    public int gameLaunchCount;
+    /**
+     * ★ 1.4.5：上一次弹「启动次数提示」时的里程碑（20 / 60 / 80 / 100 …）。
+     * 用它保证同一个里程碑**只弹一次**，玩家点过就不会反复烦他。
+     */
+    public int lastLaunchPromptAt;
+
+    public LauncherSetting(String str, SourceSetting sourceSetting, int i, int i2, boolean z, boolean z2, boolean z3, boolean z4, boolean z5, String str2, String str3, BackgroundSetting backgroundSetting, String str4) {
+        this.gameFileDirectory = str;
+        this.downloadUrlSource = sourceSetting;
+        this.language = i;
+        this.maxDownloadTask = i2;
+        this.autoDownloadTaskQuantity = z;
+        this.autoCheckUpdate = z2;
+        this.getBetaVersion = z3;
+        this.fullscreen = z4;
+        this.launcherTheme = str2;
+        this.panelColor = str3;
+        this.launcherBackground = backgroundSetting;
+        this.cachePath = str4;
+        // ★ 1.5.0：原来这个构造末尾还有第 14 个参数 i3 → this.uiTheme（草方块主题）。
+        //   草方块 UI 已下线，14 参构造整条删掉；调用方（InitializeSetting）用的是这个
+        //   13 参版本，没有别的调用点。uiStyle 的默认值交给 useNewLayout() 处理。
+    }
+}

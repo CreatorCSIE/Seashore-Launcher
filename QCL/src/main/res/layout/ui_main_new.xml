@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ★★★ 1.5.0 新排版（玩家可在「设置 → 外观 → 排版」里切回旧排版 ui_main.xml）。
+
+     ★★★ 结构按「照 FCL」重构（2026-10-08 第二批）：
+       · **左侧常驻导航条** → `ui_main_new_left.xml`（新排版时 inflate 到 activity_main
+         顶层的 new_left_nav_host，切二级页面**不消失**；旧排版完全不受影响）。
+       · **右侧常驻栏**（账号卡片 + 版本行 + 启动按钮）→ `ui_main_new_right.xml`
+         （同理挂 activity_main 顶层，切页面也常驻）。
+       · **本文件 = 中间内容区**：照 FCL `ui_main.xml` 的样子 ——
+         **公告卡片在左（约 52% 宽）+ 3D 人物在右（约 48% 宽，垂直居中）**，
+         两者**左右并排、互不遮挡**（FCL 就是公告 40% / 人物 50% 并排）。
+
+     ★ 剩余 id 全部由 MainUI 按 id 查找绑定，一个都不能少：
+       ui_main / account_model_container / account_model_view /
+       announcement_container / announcement_title / announcement_text /
+       announcement_date / announcement_hide -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ui_main"
+    android:visibility="invisible"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="10dp">
+
+    <!-- ★★★ 公告卡片（照 FCL announcement_container）：
+         标题「公告」+ 可滚动正文（可点链接）+ 更新时间 + 「隐藏」按钮。
+         ★ 没公告时整体 GONE（MainUI 控制），人物会自动回到中间。
+         ★ 1.5.8：宽度改成 weight=0.68（≈40%），人物区 1.32 —— 对齐 FCL 的
+            layout_constraintWidth_percent="0.4"。原来 52:48 会让公告显得又宽又长。 -->
+    <LinearLayout
+        android:id="@+id/announcement_container"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.05"
+        android:visibility="gone"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:background="@drawable/qcl_button_gray"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/announcement_title"
+                android:singleLine="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:padding="10dp"
+                android:text="@string/qcl_announcement"
+                android:textColor="@color/colorPureWhite"
+                android:textSize="16sp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#33FFFFFF"/>
+
+            <!-- ★ 1.5.8：ScrollView 保留（展开后可滚动），但它不再「越高越撑」——
+                 真正的限制在正文的 maxLines 上（折叠时只占 6 行高度）。 -->
+            <ScrollView
+                android:id="@+id/announcement_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <!-- ★★★★★ 1.5.8 修「公告拉太长，挡住半屏」：
+                     默认只显示 6 行 + 末尾省略号，玩家想读全文点下面的「展开」。
+                     maxLines 由 MainUI 在展开/收起时切换。 -->
+                <TextView
+                    android:id="@+id/announcement_text"
+                    android:autoLink="web"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:textColor="@color/colorLightWhite"
+                    android:textColorLink="#77FF00"
+                    android:textSize="@dimen/text_size_small"/>
+
+            </ScrollView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#33FFFFFF"/>
+
+            <!-- ★★★★★ 1.5.8：「展开 / 收起」按钮（正文默认 6 行，点它看全文）。 -->
+            <TextView
+                android:id="@+id/announcement_expand"
+                android:singleLine="true"
+                android:focusable="true"
+                android:clickable="true"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:text="@string/qcl_announcement_expand"
+                android:textColor="#88FFFFFF"
+                android:textSize="@dimen/text_size_small"/>
+
+            <!-- ★★★ 1.5.0（2026-10-10 用户要求）：「加一个左右切换公告按钮」。
+                 公告栏原来一次只显示**一条**（applyAnnouncement 里 for+break 只取第一条），
+                 拆成多条时玩家看不到其余的（用户实测「只看到 10-10，看不到 10-09」）。
+                 这里加「◀ / ▶」两个按钮在日期两侧，玩家可以自己翻阅所有公告。 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/announcement_prev"
+                    android:singleLine="true"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="14dp"
+                    android:paddingRight="14dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:text="@string/qcl_announcement_prev"
+                    android:textColor="@color/colorPureWhite"
+                    android:textSize="16sp"/>
+
+                <TextView
+                    android:id="@+id/announcement_date"
+                    android:singleLine="true"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:textColor="@color/colorLightWhite"
+                    android:textSize="@dimen/text_size_small"/>
+
+                <TextView
+                    android:id="@+id/announcement_next"
+                    android:singleLine="true"
+                    android:focusable="true"
+                    android:clickable="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="14dp"
+                    android:paddingRight="14dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:text="@string/qcl_announcement_next"
+                    android:textColor="@color/colorPureWhite"
+                    android:textSize="16sp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- 「隐藏」按钮（照 FCL 的 hide）——点掉后记进设置，下次不再自动弹 -->
+        <LinearLayout
+            android:id="@+id/announcement_hide"
+            android:background="@drawable/qcl_button_gray"
+            android:focusable="true"
+            android:clickable="true"
+            android:layout_marginTop="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:singleLine="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/qcl_announcement_hide"
+                android:textColor="@color/colorPureWhite"
+                android:textSize="@dimen/text_size_middle"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ★ 3D 人物区（照 FCL 的 SkinViewer：占约 48% 宽、垂直居中）。
+         ★ 公告显示时它在右边；公告 GONE 时它自动扩张到整个中间区
+         （因为公告那个 LinearLayout 是 GONE，不参与 weight 分配）。 -->
+    <FrameLayout
+        android:id="@+id/account_model_container"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.95"
+        android:clipChildren="true"
+        android:clipToPadding="true">
+
+        <LinearLayout
+            android:id="@+id/account_model_view"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/qcl_account_model_height"
+            android:layout_gravity="center"
+            android:orientation="vertical"/>
+
+    </FrameLayout>
+
+</LinearLayout>

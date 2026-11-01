@@ -578,3 +578,17 @@ TRW 探针版（1223064B）16:50 部署；第一轮 logcat 后台进程 17:23 �
 - **B C 侧防御（可选增强）**：FPE `normalize` 前加零向量保护——可兜住一切发零法线的应用（不止 MC），但属超出 GL spec 未定义区的行为固化，进上游 PR 前需单独评估。
 
 **上游 PR 素材（§32 待办①）增补**：#429（b1.7.3+1.12.2 同症状、open、零评论）可直接以本节证据链回帖定位：Java 侧数据 bug + shader `normalize(0)` 未定义行为，非 gl4es 展开/合并/颜色链路问题。（**2026-11-01 用户裁定：不向 gl4es 上游交 PR/回帖，本段仅作素材存档**；本案修复面本就在 Java 侧，出货走选项 A `-Dlf.gl4esquad`，与上游无关。）
+
+## 36. QCL 上游同步：1.5.7 → 1.5.9 判读（2026-11-01，Phase 1 基座落库前置）
+
+reference 克隆已切至 `1.5.9`（`e49f4b3`，1.5.8/1.5.9 同提交，tag v1.5.8/v1.5.9）。增量 6 commits、+2256/−45（28 文件），**全部现代侧，远古面零触碰**——基座落库源版本改钉 1.5.9。
+
+**1.5.8 核心（Minecraft 26.3 启动线，非我方域）**：真根因 = 26.3 默认图形 API 仍 OpenGL，GL 路径过 `libmobileglues.so` 的 `glGetString` 对部分查询返回 NULL、调用方 `strlen(NULL)` → 原生 SIGSEGV（tombstone 铁证）；26.4 官方改 Default≈Prefer Vulkan 故不崩。修法 = 26.3+ 追加官方参数 `--graphicsBackend vulkan` + 自动写 MG 配置 `enableNoError=2`（键名坑：非 ignoreError）。附带：MobileGlues 内置（aar 7.8MB 四 ABI）、JNA 5.19.1 natives 解压链、首帧视角甩动修（cursor NaN 哨兵）、安装器 JVM 起不来 catch Throwable、fml.toml earlyWindowControl、背景图采样解码。
+
+**1.5.9**：公告「展开」按钮修复 + 补建公告 id=109。
+
+**对我方的四点判读**：
+1. **渲染器库解析顺序 = Phase 1 fork so 集成通道实锤**：1.5.8 起"内置（APK 自带）→ 外部插件 APK → `renderer/<id>/` 手放目录"三级解析（`RendererPicker`/`RendererCompat.isBuiltinLibPresent`），Seashore-Renderer 产物走 jniLibs 内置即一等公民；条目注册面 = `RendererCompat.ALL`（id/glName/displayName/supportRange/recommended 结构），我方三条目收敛（Holy-GL4ES + Krypton + Seashore-Renderer 默认）在此裁剪。
+2. **「查看上次启动日志」+ logcat 原生崩溃 tag 补白**（1.5.8）与 §3 崩溃界面参照同族——基座自带，Phase 1 白捡。
+3. **README"天花板"表述未动**：1.5.8/1.5.9 只增渲染器表与 26.3 根因段，远古色块的"第三方共有天花板"归因原样——issue #5 修订稿的更新建议依然成立，且他们 26.3 一案的取证文风（真根因=组合而非自家 bug）与我方两案同构。
+4. **cherry-pick 纪律再验**：1.5.8 改动密集在现代启动链（PojavLauncher/CheckJavaTask/JREUtils），恰属 Phase 2 砍面——摘取时按模块簇走，勿被"升级冲动"整分支同步。

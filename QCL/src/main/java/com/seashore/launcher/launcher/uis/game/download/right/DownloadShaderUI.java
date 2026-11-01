@@ -1,0 +1,427 @@
+package com.seashore.launcher.launcher.uis.game.download.right;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.KeyEvent;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.SpinnerAdapter;
+import android.widget.TextView;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.list.download.DownloadResourceAdapter;
+import com.seashore.launcher.launcher.mod.RemoteMod;
+import com.seashore.launcher.launcher.mod.RemoteModRepository;
+import com.seashore.launcher.launcher.mod.curse.CurseForgeRemoteModRepository;
+import com.seashore.launcher.launcher.mod.modrinth.ModrinthRemoteModRepository;
+import com.seashore.launcher.launcher.setting.SettingUtils;
+import com.seashore.launcher.launcher.uis.tools.BaseUI;
+import com.seashore.launcher.launcher.view.spinner.CategorySpinnerAdapter;
+import com.seashore.launcher.utils.animation.CustomAnimationUtils;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import com.seashore.launcher.R;
+/* loaded from: classes2.dex */
+public class DownloadShaderUI extends BaseUI implements View.OnClickListener, AdapterView.OnItemSelectedListener, TextView.OnEditorActionListener, TextWatcher {
+
+    // ★ 1.5.2（D 方案）：左侧可折叠筛选栏 + [☰ 筛选] 开关
+    private android.view.View filterPanel;
+    private android.view.View toggleFilter;
+    /** 切换筛选栏期间抑制 onItemSelected 里的 search()/reload（否则每点一次筛选就重载列表）。 */
+    private boolean suppressReload = false;
+    // ★ 1.5.2：分页（offset 原来写死 0 ⇒ 永远第一页）
+    private static final int PAGE_SIZE = 50;
+    private int pageOffset = 0;
+    private android.widget.TextView pagePrev;
+    private android.widget.TextView pageNext;
+    private android.widget.TextView pageInfo;
+
+    /** ★ 1.5.2：刷新「第 N 页 / 共 M 页」。total = -1 表示该源不提供总数。 */
+    private void updatePageInfo(int total) {
+        if (this.pageInfo == null) {
+            return;
+        }
+        int pageNo = this.pageOffset / PAGE_SIZE + 1;
+        try {
+            if (total > 0) {
+                // ★ 不再对所有源统一限 10000；真正的上限在 CurseForge 自己那一层
+                int totalPages = (int) Math.ceil((double) total / PAGE_SIZE);
+                this.pageInfo.setText(String.format(
+                        this.context.getString(R.string.download_page_info), pageNo, totalPages));
+            } else {
+                this.pageInfo.setText(String.format(
+                        this.context.getString(R.string.download_page_current), pageNo));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private ArrayList<RemoteModRepository.Category> categoryList;
+    private CategorySpinnerAdapter categoryListAdapter;
+    private DownloadResourceAdapter downloadResourcePackListAdapter;
+    public LinearLayout downloadResourcePackUI;
+    private Spinner editCategory;
+    private EditText editName;
+    private Spinner editSort;
+    private EditText editVersion;
+    private Spinner editVersionSpinner;
+    private ArrayList<String> gameList;
+    private ArrayAdapter<String> gameListAdapter;
+    private Spinner gameSpinner;
+    public String gameVersion;
+    private boolean isSearching;
+    public String lastVersion;
+    private ProgressBar progressBar;
+    private RemoteModRepository repository;
+    private ArrayList<RemoteMod> resourcePackList;
+    private ListView resourcePackListView;
+    private Button search;
+    private Button refresh;
+    private final Handler searchHandler;
+    private ArrayList<String> sortList;
+    private ArrayAdapter<String> sortListAdapter;
+    private ArrayList<String> versionList;
+    private ArrayAdapter<String> versionListAdapter;
+
+    @Override // android.text.TextWatcher
+    public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+    }
+
+    @Override // android.widget.AdapterView.OnItemSelectedListener
+    public void onNothingSelected(AdapterView<?> adapterView) {
+    }
+
+    @Override // android.text.TextWatcher
+    public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+    }
+
+    public DownloadShaderUI(Context context, MainActivity mainActivity) {
+        super(context, mainActivity);
+        this.isSearching = false;
+        this.searchHandler = new Handler() { // from class: com.seashore.launcher.launcher.uis.game.download.right.DownloadShaderUI.1
+            @Override // android.os.Handler
+            public void handleMessage(Message message) {
+                super.handleMessage(message);
+                if (message.what == 0) {
+                    DownloadShaderUI.this.isSearching = true;
+                    DownloadShaderUI.this.progressBar.setVisibility(0);
+                    DownloadShaderUI.this.resourcePackListView.setVisibility(8);
+                }
+                if (message.what == 1) {
+                    DownloadShaderUI.this.downloadResourcePackListAdapter.notifyDataSetChanged();
+                    DownloadShaderUI.this.categoryListAdapter.notifyDataSetChanged();
+                    DownloadShaderUI.this.progressBar.setVisibility(8);
+                    DownloadShaderUI.this.resourcePackListView.setVisibility(0);
+                    // ★ 2026-10-11 补上列表入场动画（原来只有模组页调了 animateList）
+                    //   ★ 必须 post：此刻还没完成布局，getChildCount() 为 0 动画会空跑。
+                    DownloadShaderUI.this.resourcePackListView.post(() -> {
+                        try {
+                            DownloadShaderUI.this.downloadResourcePackListAdapter
+                                    .animateList(DownloadShaderUI.this.resourcePackListView);
+                        } catch (Throwable ignored) {
+                        }
+                    });
+                    DownloadShaderUI.this.isSearching = false;
+                }
+                if (message.what == 2) {
+                    DownloadShaderUI.this.progressBar.setVisibility(8);
+                    DownloadShaderUI.this.resourcePackListView.setVisibility(8);
+                    DownloadShaderUI.this.isSearching = false;
+                }
+            }
+        };
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onCreate() {
+        super.onCreate();
+        // ★ 1.5.2（D 方案）：绑定左侧筛选栏与 [☰ 筛选] 开关
+        this.filterPanel = this.activity.findViewById(R.id.download_shader_filter_panel);
+        this.toggleFilter = this.activity.findViewById(R.id.toggle_shader_filter);
+        // ★★★ 1.5.5：筛选栏常驻左栏 ⇒ 「☰ 筛选」开关没有意义了，隐藏掉。
+        if (this.toggleFilter != null) {
+            this.toggleFilter.setVisibility(View.GONE);
+        }
+        // 强制显示筛选栏（原来是默认 GONE，点「☰ 筛选」才展开）
+        if (this.filterPanel != null) {
+            this.filterPanel.setVisibility(View.VISIBLE);
+        }
+        // ★ 1.5.2：翻页栏
+        this.pagePrev = (android.widget.TextView) this.activity.findViewById(R.id.shader_page_prev);
+        this.pageNext = (android.widget.TextView) this.activity.findViewById(R.id.shader_page_next);
+        this.pageInfo = (android.widget.TextView) this.activity.findViewById(R.id.shader_page_info);
+        if (this.pagePrev != null) {
+            this.pagePrev.setOnClickListener((View.OnClickListener) this);
+        }
+        if (this.pageNext != null) {
+            this.pageNext.setOnClickListener((View.OnClickListener) this);
+        }
+        if (this.toggleFilter != null) {
+            this.toggleFilter.setOnClickListener((View.OnClickListener) this);
+            try {
+                if (this.toggleFilter instanceof android.widget.TextView) {
+                    int tc = com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI
+                            .parseThemeColorSafe(this.activity,
+                                    this.activity.launcherSetting.launcherTheme);
+                    ((android.widget.TextView) this.toggleFilter).setTextColor(tc);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        this.downloadResourcePackUI = (LinearLayout) this.activity.findViewById(R.id.ui_download_shader);
+        this.gameSpinner = (Spinner) this.activity.findViewById(R.id.download_shader_arg_game);
+        this.editName = (EditText) this.activity.findViewById(R.id.download_shader_arg_name);
+        this.editVersion = (EditText) this.activity.findViewById(R.id.edit_download_shader_arg_version);
+        this.editVersionSpinner = (Spinner) this.activity.findViewById(R.id.download_shader_arg_version);
+        this.editCategory = (Spinner) this.activity.findViewById(R.id.download_shader_arg_type);
+        this.editSort = (Spinner) this.activity.findViewById(R.id.download_shader_arg_sort);
+        Button button = (Button) this.activity.findViewById(R.id.search_shader);
+        this.search = button;
+        // ★ 1.2.3：搜索旁的「刷新」——和搜索走同一条查询路
+
+        this.refresh = (Button) this.activity.findViewById(R.id.refresh_shader_search);
+
+        if (this.refresh != null) {
+
+            this.refresh.setOnClickListener((View.OnClickListener)this);
+
+        }
+
+        button.setOnClickListener(this);
+        this.gameList = SettingUtils.getLocalVersionNames(this.activity.launcherSetting.gameFileDirectory);
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.gameList);
+        this.gameListAdapter = arrayAdapter;
+        this.gameSpinner.setAdapter((SpinnerAdapter) arrayAdapter);
+        ArrayList<String> arrayList = new ArrayList<>();
+        this.sortList = arrayList;
+        arrayList.add(this.context.getString(R.string.download_mod_sort_date));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_heat));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_recent));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_name));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_author));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_downloads));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_category));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_game_version));
+        ArrayAdapter<String> arrayAdapter2 = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.sortList);
+        this.sortListAdapter = arrayAdapter2;
+        arrayAdapter2.setDropDownViewResource(R.layout.item_spinner_drop_down);
+        this.editSort.setAdapter((SpinnerAdapter) this.sortListAdapter);
+        // ★ 1.2.3：默认按「下载量」排序
+
+        this.editSort.setSelection(this.sortList.indexOf(this.context.getString(R.string.download_mod_sort_downloads)));
+
+        ArrayList<String> arrayList2 = new ArrayList<>();
+        this.versionList = arrayList2;
+        arrayList2.add("");
+        this.versionList.addAll(Arrays.asList(RemoteModRepository.DEFAULT_GAME_VERSIONS));
+        ArrayAdapter<String> arrayAdapter3 = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.versionList);
+        this.versionListAdapter = arrayAdapter3;
+        arrayAdapter3.setDropDownViewResource(R.layout.item_spinner_drop_down);
+        this.editVersionSpinner.setAdapter((SpinnerAdapter) this.versionListAdapter);
+        // ★ 1.2.5：照 FCL DownloadPage.java —— 版本筛选下拉第一项是「不筛选」，
+        //   默认停在第一项，**不做任何自动匹配**；玩家自己选版本，查询按所选版本走。
+
+        this.editVersionSpinner.setSelection(0);
+
+        ArrayList<RemoteModRepository.Category> arrayList3 = new ArrayList<>();
+        this.categoryList = arrayList3;
+        arrayList3.add(new RemoteModRepository.Category(CurseForgeRemoteModRepository.CATEGORY_ALL, "0", new ArrayList()));
+        CategorySpinnerAdapter categorySpinnerAdapter = new CategorySpinnerAdapter(this.context, this.categoryList, 12);
+        this.categoryListAdapter = categorySpinnerAdapter;
+        this.editCategory.setAdapter((SpinnerAdapter) categorySpinnerAdapter);
+        this.gameSpinner.setOnItemSelectedListener(this);
+        this.editVersionSpinner.setOnItemSelectedListener(this);
+        this.editCategory.setOnItemSelectedListener(this);
+        this.editSort.setOnItemSelectedListener(this);
+        this.editName.setOnEditorActionListener(this);
+        this.editVersion.setOnEditorActionListener(this);
+        this.editVersion.addTextChangedListener(this);
+        this.progressBar = (ProgressBar) this.activity.findViewById(R.id.loading_download_shader_list_progress);
+        this.repository = ModrinthRemoteModRepository.SHADERS;
+        this.resourcePackListView = (ListView) this.activity.findViewById(R.id.download_shader_list);
+        this.resourcePackList = new ArrayList<>();
+        DownloadResourceAdapter downloadResourceAdapter = new DownloadResourceAdapter(this.context, this.activity, this.repository, this.resourcePackList, 2);
+        this.downloadResourcePackListAdapter = downloadResourceAdapter;
+        this.resourcePackListView.setAdapter((ListAdapter) downloadResourceAdapter);
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStart() {
+        super.onStart();
+        CustomAnimationUtils.showViewFromLeft(this.downloadResourcePackUI, this.activity, this.context, false);
+        this.activity.uiManager.downloadUI.startDownloadShaderUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_white));
+        init();
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStop() {
+        super.onStop();
+        CustomAnimationUtils.hideViewToLeft(this.downloadResourcePackUI, this.activity, this.context, false);
+        if (this.activity.isLoaded) {
+            this.activity.uiManager.downloadUI.startDownloadShaderUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_parent));
+        }
+    }
+
+    private void init() {
+        if (this.resourcePackList.size() == 0 && this.editName.getText().toString().equals("")) {
+            search();
+        }
+    }
+
+    public void refreshGameList() {
+        boolean z;
+        String str;
+        if (Objects.equals(this.lastVersion, this.activity.publicGameSetting.currentVersion)) {
+            z = false;
+        } else {
+            this.lastVersion = this.activity.publicGameSetting.currentVersion;
+            z = true;
+        }
+        this.gameList = SettingUtils.getLocalVersionNames(this.activity.launcherSetting.gameFileDirectory);
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.gameList);
+        this.gameListAdapter = arrayAdapter;
+        this.gameSpinner.setAdapter((SpinnerAdapter) arrayAdapter);
+        if (this.gameList.size() > 0) {
+            if (z && this.activity.publicGameSetting.currentVersion != null && !this.activity.publicGameSetting.currentVersion.equals("")) {
+                String substring = this.activity.publicGameSetting.currentVersion.substring(this.activity.publicGameSetting.currentVersion.lastIndexOf("/") + 1);
+                if (substring.length() <= 0 || !this.gameList.contains(substring)) {
+                    return;
+                }
+                this.gameSpinner.setSelection(this.gameListAdapter.getPosition(substring));
+                return;
+            }
+            if (!z && (str = this.gameVersion) != null && this.gameList.contains(str)) {
+                this.gameSpinner.setSelection(this.gameListAdapter.getPosition(this.gameVersion));
+                return;
+            } else {
+                this.gameSpinner.setSelection(0);
+                return;
+            }
+        }
+        this.gameVersion = null;
+    }
+
+    private void search() {
+        if (this.isSearching) {
+            return;
+        }
+        new Thread(new Runnable() { // from class: com.seashore.launcher.launcher.uis.game.download.right.DownloadShaderUI$$ExternalSyntheticLambda0
+            @Override // java.lang.Runnable
+            public final void run() {
+                DownloadShaderUI.this.m480xac3c11dc();
+            }
+        }).start();
+    }
+
+    /* JADX INFO: Access modifiers changed from: package-private */
+    /* renamed from: lambda$search$0$com-qcl-launcher-launcher-uis-game-download-right-DownloadShaderUI, reason: not valid java name */
+    public /* synthetic */ void m480xac3c11dc() {
+        try {
+            this.searchHandler.sendEmptyMessage(0);
+            List list = (List) this.repository.search(this.editVersion.getText().toString(), (RemoteModRepository.Category) this.categoryListAdapter.getItem(this.editCategory.getSelectedItemPosition()), this.pageOffset, PAGE_SIZE, this.editName.getText().toString(), RemoteMod.getSortTypeByPosition(this.editSort.getSelectedItemPosition()), RemoteModRepository.SortOrder.DESC).collect(Collectors.toList());
+            List list2 = (List) this.repository.getCategories().collect(Collectors.toList());
+            // ★★★★★ 2026-10-11 修「跨线程改 UI」崩溃（与模组页同因，logcat 实锤）：
+            //   ViewRootImpl$CalledFromWrongThreadException —— 后台线程不能碰 View。
+            //   这里原来在 new Thread 里直接 resourcePackList.clear/addAll、
+            //   categoryList.clear/add ⇒ 抛异常 ⇒ 本页空白 + 视图树被搞坏 ⇒ "感染"其他页。
+            //   修法：网络留在后台，UI 操作搬回主线程。
+            final List finalList = list;
+            final List finalCategories = list2;
+            this.activity.runOnUiThread(() -> {
+                try {
+                    this.resourcePackList.clear();
+                    this.resourcePackList.addAll(finalList);
+                    this.categoryList.clear();
+                    this.categoryList.add(new RemoteModRepository.Category(ModrinthRemoteModRepository.CATEGORY_ALL, "all", new ArrayList()));
+                    for (int i = 0; i < finalCategories.size(); i++) {
+                        this.categoryList.add((RemoteModRepository.Category) finalCategories.get(i));
+                        this.categoryList.addAll(((RemoteModRepository.Category) finalCategories.get(i)).getSubcategories());
+                    }
+                    this.searchHandler.sendEmptyMessage(1);
+            // ★ 1.5.2：刷新「第 N 页 / 共 M 页」
+            try {
+                updatePageInfo(this.repository.getLastTotalCount());
+            } catch (Throwable ignored) {
+            }
+                } catch (Throwable uiErr) {
+                    this.searchHandler.sendEmptyMessage(2);
+                }
+            });
+        } catch (Exception e) {
+            this.searchHandler.sendEmptyMessage(2);
+            e.printStackTrace();
+        }
+    }
+
+    @Override // android.view.View.OnClickListener
+    public void onClick(View view) {
+        // ★ 1.5.2（D 方案）：[☰ 筛选] —— 折叠/展开左侧筛选栏。
+        //   切换期间抑制 onItemSelected 触发的重新查询（Spinner 重新测量会误触发）。
+        // ★ 1.5.2：上一页 / 下一页
+        if (view == this.pagePrev) {
+            if (this.pageOffset >= PAGE_SIZE) {
+                this.pageOffset -= PAGE_SIZE;
+                search();
+            }
+            return;
+        }
+        if (view == this.pageNext) {
+            this.pageOffset += PAGE_SIZE;
+            search();
+            return;
+        }
+        if (view == this.toggleFilter) {
+            // ★★★ 2026-10-25（1.5.5）：筛选栏已改成**常驻左侧竖排**（照 FCL 左栏），
+            //   不再需要「☰ 筛选」折叠 —— 保留分支只为不让它误折叠。
+            return;
+        }
+        if (view == this.search || view == this.refresh) {
+            search();
+        }
+    }
+
+    @Override // android.widget.AdapterView.OnItemSelectedListener
+    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long j) {
+        // ★ 1.5.2：切换筛选栏期间忽略 Spinner 的误触发
+        if (this.suppressReload) {
+            return;
+        }
+        if (adapterView == this.editCategory || adapterView == this.editSort || adapterView == this.editVersionSpinner) {
+            search();
+            if (adapterView == this.editVersionSpinner) {
+                this.editVersion.setText((String) adapterView.getItemAtPosition(i));
+            }
+        }
+        if (adapterView == this.gameSpinner) {
+            this.gameVersion = this.gameList.size() > 0 ? this.gameSpinner.getSelectedItem().toString() : null;
+        }
+    }
+
+    @Override // android.widget.TextView.OnEditorActionListener
+    public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+        if (textView != this.editName && textView != this.editVersion) {
+            return false;
+        }
+        search();
+        return false;
+    }
+
+    @Override // android.text.TextWatcher
+    public void afterTextChanged(Editable editable) {
+        search();
+    }
+}

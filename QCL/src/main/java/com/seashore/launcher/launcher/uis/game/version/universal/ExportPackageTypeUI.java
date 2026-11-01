@@ -1,0 +1,64 @@
+package com.seashore.launcher.launcher.uis.game.version.universal;
+
+import android.content.Context;
+import android.view.View;
+import android.widget.LinearLayout;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.mod.export.ModpackExporter;
+import com.seashore.launcher.launcher.uis.tools.BaseUI;
+import com.seashore.launcher.utils.animation.CustomAnimationUtils;
+
+import com.seashore.launcher.R;
+/* loaded from: classes2.dex */
+public class ExportPackageTypeUI extends BaseUI implements View.OnClickListener {
+    public LinearLayout exportPackageTypeUI;
+    private LinearLayout hmclPackage;
+    private LinearLayout multimc;
+    private LinearLayout server;
+
+    @Override // android.view.View.OnClickListener
+    public void onClick(View view) {
+        int packType;
+        if (view == this.hmclPackage) {
+            packType = ModpackExporter.TYPE_HMCL;
+        } else if (view == this.multimc) {
+            packType = ModpackExporter.TYPE_MULTIMC;
+        } else if (view == this.server) {
+            packType = ModpackExporter.TYPE_SERVER;
+        } else {
+            return;
+        }
+        // 记录所选类型后进入「填写整合包信息」页面
+        this.activity.uiManager.exportPackageInfoUI.setPackType(packType);
+        this.activity.uiManager.switchMainUI(this.activity.uiManager.exportPackageInfoUI);
+    }
+
+    public ExportPackageTypeUI(Context context, MainActivity mainActivity) {
+        super(context, mainActivity);
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onCreate() {
+        super.onCreate();
+        this.exportPackageTypeUI = (LinearLayout) this.activity.findViewById(R.id.ui_export_package_type);
+        this.hmclPackage = (LinearLayout) this.activity.findViewById(R.id.export_package_hmcl);
+        this.multimc = (LinearLayout) this.activity.findViewById(R.id.export_package_multimc);
+        this.server = (LinearLayout) this.activity.findViewById(R.id.export_package_server);
+        this.hmclPackage.setOnClickListener(this);
+        this.multimc.setOnClickListener(this);
+        this.server.setOnClickListener(this);
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStart() {
+        super.onStart();
+        this.activity.showBarTitle(this.context.getResources().getString(R.string.export_package_type_ui_title), false, true);
+        CustomAnimationUtils.showViewFromLeft(this.exportPackageTypeUI, this.activity, this.context, true);
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStop() {
+        super.onStop();
+        CustomAnimationUtils.hideViewToLeft(this.exportPackageTypeUI, this.activity, this.context, true);
+    }
+}

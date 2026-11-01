@@ -1,0 +1,176 @@
+package com.seashore.launcher.launcher.list.download.minecraft;
+
+import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.download.game.AprilFools;
+import com.seashore.launcher.launcher.download.game.VersionManifest;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+
+import com.seashore.launcher.R;
+/* loaded from: classes2.dex */
+public class DownloadGameListAdapter extends BaseAdapter {
+    private MainActivity activity;
+    private Context context;
+    private ArrayList<VersionManifest.Version> versions;
+
+    @Override // android.widget.Adapter
+    public long getItemId(int i) {
+        return 0L;
+    }
+
+    /* loaded from: classes2.dex */
+    private class ViewHolder {
+        ImageView icon;
+        LinearLayout item;
+        TextView mcId;
+        TextView releaseTime;
+        TextView type;
+        /**
+         * ★★★ 1.5.5：跳转该版本 Minecraft Wiki 页的地球图标（照 FCL 的 @+id/wiki）。
+         */
+        ImageView wiki;
+
+        private ViewHolder() {
+        }
+    }
+
+    private String getType(String str) {
+        if (str.equals("release")) {
+            return this.context.getString(R.string.download_minecraft_ui_release);
+        }
+        if (str.equals("snapshot")) {
+            return this.context.getString(R.string.download_minecraft_ui_snapshot);
+        }
+        // ★ 1.5.0：照 FCL —— PENDING（Combat Test / 1.18·1.19 实验性快照）与
+        //   UNOBFUSCATED（未混淆构建）都归「快照版」，
+        //   与 FCL 的 VersionInstallPage / RemoteVersionListAdapter 口径一致。
+        if (str.equals("pending") || str.equals("unobfuscated")) {
+            return this.context.getString(R.string.download_minecraft_ui_snapshot);
+        }
+        if ("archive".equals(str)) {
+            return this.context.getString(R.string.download_minecraft_ui_archive);
+        }
+        return this.context.getString(R.string.download_minecraft_ui_old);
+    }
+
+    /**
+     * ★ 1.4.5：类型标签 —— 愚人节版虽然在清单里是 snapshot，但列表里要单独显示"愚人节版"，
+     * 否则玩家在快照列表里根本认不出哪几个是愚人节版本。
+     */
+    private String getTypeLabel(VersionManifest.Version version) {
+        if (AprilFools.isAprilFools(version)) {
+            return this.context.getString(R.string.download_minecraft_ui_april);
+        }
+        // ★★★ 2026-10-08 修正：删掉「纯数字 id 一律显示正式版」这条旧规则。
+        //   官方 version_manifest_v2.json 实测：1.3 / 1.4 / 1.4.1 / 1.4.3 / 1.5 / 1.6 /
+        //   1.6.3 / 1.7 / 1.7.1 的 type **就是 snapshot**（它们是预发布版，
+        //   正式版是 1.3.1 / 1.4.2 / 1.4.4 / 1.5.0 / 1.6.1 / 1.7.2），
+        //   只有 1.7.3 起官方才标 release。照抄清单才不会把预览版塞进「正式版」。
+        //   口径与 DownloadMinecraftUI.refresh() 完全一致。
+        return getType(version == null ? "" : version.type);
+    }
+
+    private Drawable getIcon(String str) {
+        if (str.equals("release")) {
+            return this.context.getDrawable(R.drawable.ic_grass);
+        }
+        if (str.equals("snapshot") || str.equals("pending") || str.equals("unobfuscated")) {
+            return this.context.getDrawable(R.drawable.ic_command);
+        }
+        // ★★★ 1.5.0：走不到上面几支的就是**远古版**（见 DownloadMinecraftUI 的分类口径：
+        //   RELEASE→正式版；PENDING/UNOBFUSCATED/SNAPSHOT→快照版；**其余→远古版**）。
+        //   用户要求「远古版本统一使用原石立方体图标」，所以这里从命令方块换成原石。
+        return this.context.getDrawable(R.drawable.ic_cobble);
+    }
+
+    public DownloadGameListAdapter(Context context, MainActivity mainActivity, ArrayList<VersionManifest.Version> arrayList) {
+        this.context = context;
+        this.activity = mainActivity;
+        this.versions = arrayList;
+    }
+
+    @Override // android.widget.Adapter
+    public int getCount() {
+        return this.versions.size();
+    }
+
+    @Override // android.widget.Adapter
+    public Object getItem(int i) {
+        return this.versions.get(i);
+    }
+
+    @Override // android.widget.Adapter
+    public View getView(int i, View view, ViewGroup viewGroup) {
+        View view2;
+        ViewHolder viewHolder;
+        if (view == null) {
+            viewHolder = new ViewHolder();
+            view2 = LayoutInflater.from(this.context).inflate(R.layout.item_download_game_list, (ViewGroup) null);
+            viewHolder.item = (LinearLayout) view2.findViewById(R.id.item);
+            viewHolder.icon = (ImageView) view2.findViewById(R.id.icon);
+            viewHolder.mcId = (TextView) view2.findViewById(R.id.id);
+            viewHolder.type = (TextView) view2.findViewById(R.id.type);
+            viewHolder.releaseTime = (TextView) view2.findViewById(R.id.release_time);
+            viewHolder.wiki = (ImageView) view2.findViewById(R.id.wiki);
+            this.activity.exteriorConfig.apply(viewHolder.type);
+            view2.setTag(viewHolder);
+        } else {
+            view2 = view;
+            viewHolder = (ViewHolder) view.getTag();
+        }
+        final VersionManifest.Version version = this.versions.get(i);
+        viewHolder.icon.setImageDrawable(getIcon(version.type));
+        viewHolder.mcId.setText(version.id);
+        viewHolder.type.setText(getTypeLabel(version));
+        viewHolder.releaseTime.setText(version.releaseTime == null ? "" : DateTimeFormatter.ofPattern(this.context.getString(R.string.time_pattern)).withZone(ZoneId.systemDefault()).format(version.releaseTime.toInstant()));
+        viewHolder.item.setOnClickListener(new View.OnClickListener() { // from class: com.seashore.launcher.launcher.list.download.minecraft.DownloadGameListAdapter$$ExternalSyntheticLambda0
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view3) {
+                DownloadGameListAdapter.this.m414x716a5e8(version, view3);
+            }
+        });
+        // ★★★ 1.5.5：地球图标 = 跳转该版本对应的 Minecraft Wiki 页（照 FCL 的 RemoteVersionListAdapter）。
+        //   刻意**不**复用整行的点击（那是「进入安装页」）：两件事必须分开，
+        //   否则玩家想查资料却直接被推进下载流程。
+        //   Wiki 页面名走 WikiUtils —— 内部先查实测表（覆盖全部 920 个官方版本），
+        //   查不到才回退规则推导。
+        if (viewHolder.wiki != null) {
+            final VersionManifest.Version wikiVersion = version;
+            viewHolder.wiki.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String vid = wikiVersion == null ? null : wikiVersion.id;
+                    if (!com.seashore.launcher.utils.game.WikiUtils.openWiki(DownloadGameListAdapter.this.context, vid)) {
+                        android.widget.Toast.makeText(DownloadGameListAdapter.this.context,
+                                DownloadGameListAdapter.this.context.getString(R.string.wiki_jump_no_browser),
+                                android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        }
+        return view2;
+    }
+
+    /* JADX INFO: Access modifiers changed from: package-private */
+    /* renamed from: lambda$getView$0$com-qcl-launcher-launcher-list-download-minecraft-DownloadGameListAdapter, reason: not valid java name */
+    public /* synthetic */ void m414x716a5e8(VersionManifest.Version version, View view) {
+        this.activity.uiManager.installGameUI.name = version.id;
+        this.activity.uiManager.installGameUI.fabricVersion = null;
+        this.activity.uiManager.installGameUI.fabricAPIVersion = null;
+        this.activity.uiManager.installGameUI.forgeVersion = null;
+        this.activity.uiManager.installGameUI.optifineVersion = null;
+        this.activity.uiManager.installGameUI.liteLoaderVersion = null;
+        this.activity.uiManager.installGameUI.version = version;
+        this.activity.uiManager.switchMainUI(this.activity.uiManager.installGameUI);
+    }
+}

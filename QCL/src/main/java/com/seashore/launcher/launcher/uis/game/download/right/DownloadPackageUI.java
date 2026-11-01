@@ -1,0 +1,530 @@
+package com.seashore.launcher.launcher.uis.game.download.right;
+
+import com.seashore.launcher.launcher.setting.SettingUtils;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.KeyEvent;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.SpinnerAdapter;
+import android.widget.TextView;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.dialogs.ModTranslationDialog;
+import com.seashore.launcher.utils.string.ModTranslations;
+import com.seashore.launcher.launcher.list.download.DownloadResourceAdapter;
+import com.seashore.launcher.launcher.mod.HybridRemoteModRepository;
+import com.seashore.launcher.launcher.mod.LocalizedRemoteModRepository;
+import com.seashore.launcher.launcher.mod.RemoteMod;
+import com.seashore.launcher.launcher.mod.RemoteModRepository;
+import com.seashore.launcher.launcher.mod.curse.CurseForgeRemoteModRepository;
+import com.seashore.launcher.launcher.mod.modrinth.ModrinthRemoteModRepository;
+import com.seashore.launcher.launcher.uis.tools.BaseUI;
+import com.seashore.launcher.launcher.view.spinner.CategorySpinnerAdapter;
+import com.seashore.launcher.utils.animation.CustomAnimationUtils;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.seashore.launcher.R;
+/* loaded from: classes2.dex */
+public class DownloadPackageUI extends BaseUI implements View.OnClickListener, AdapterView.OnItemSelectedListener, TextView.OnEditorActionListener, TextWatcher {
+
+    // ★ 1.5.2（D 方案）：左侧可折叠筛选栏 + [☰ 筛选] 开关
+    private android.view.View filterPanel;
+    private android.view.View toggleFilter;
+    /** 切换筛选栏期间抑制 onItemSelected 里的 search()/reload（否则每点一次筛选就重载列表）。 */
+    private boolean suppressReload = false;
+    // ★ 1.5.2：分页（offset 原来写死 0 ⇒ 永远第一页）
+    private static final int PAGE_SIZE = 50;
+    private int pageOffset = 0;
+    private android.widget.TextView pagePrev;
+    private android.widget.TextView pageNext;
+    private android.widget.TextView pageInfo;
+
+    /** ★ 1.5.2：刷新「第 N 页 / 共 M 页」。total = -1 表示该源不提供总数。 */
+    private void updatePageInfo(int total) {
+        if (this.pageInfo == null) {
+            return;
+        }
+        int pageNo = this.pageOffset / PAGE_SIZE + 1;
+        try {
+            if (total > 0) {
+                // ★ 不再对所有源统一限 10000；真正的上限在 CurseForge 自己那一层
+                int totalPages = (int) Math.ceil((double) total / PAGE_SIZE);
+                this.pageInfo.setText(String.format(
+                        this.context.getString(R.string.download_page_info), pageNo, totalPages));
+            } else {
+                this.pageInfo.setText(String.format(
+                        this.context.getString(R.string.download_page_current), pageNo));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private ArrayList<RemoteModRepository.Category> categoryList;
+    private CategorySpinnerAdapter categoryListAdapter;
+    private DownloadResourceAdapter downloadPackageListAdapter;
+    public LinearLayout downloadPackageUI;
+    private Spinner downloadSourceSpinner;
+    private Spinner editCategory;
+    private EditText editName;
+    private Spinner editSort;
+    private EditText editVersion;
+    private Spinner editVersionSpinner;
+    private Button installPackage;
+    private boolean isSearching;
+    private ArrayList<RemoteMod> packageList;
+    private ListView packageListView;
+    private ProgressBar progressBar;
+    private RemoteModRepository repository;
+    private Button search;
+    /**
+     * ★★★ 1.5.5：「英文查询」按钮（照 FCL 的 TranslationDialog 入口）。
+     */
+    private Button translation;
+    private Button refresh;
+    private final Handler searchHandler;
+    private ArrayList<String> sortList;
+    private ArrayAdapter<String> sortListAdapter;
+    private ArrayList<String> sourceList;
+    private ArrayAdapter<String> sourceListAdapter;
+    private ArrayList<String> versionList;
+    private ArrayAdapter<String> versionListAdapter;
+
+    @Override // android.text.TextWatcher
+    public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+    }
+
+    @Override // android.widget.AdapterView.OnItemSelectedListener
+    public void onNothingSelected(AdapterView<?> adapterView) {
+    }
+
+    @Override // android.text.TextWatcher
+    public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+    }
+
+    public DownloadPackageUI(Context context, MainActivity mainActivity) {
+        super(context, mainActivity);
+        this.isSearching = false;
+        this.searchHandler = new Handler() { // from class: com.seashore.launcher.launcher.uis.game.download.right.DownloadPackageUI.1
+            @Override // android.os.Handler
+            public void handleMessage(Message message) {
+                super.handleMessage(message);
+                if (message.what == 0) {
+                    DownloadPackageUI.this.isSearching = true;
+                    DownloadPackageUI.this.progressBar.setVisibility(0);
+                    DownloadPackageUI.this.packageListView.setVisibility(8);
+                }
+                if (message.what == 1) {
+                    DownloadPackageUI.this.downloadPackageListAdapter.notifyDataSetChanged();
+                    DownloadPackageUI.this.categoryListAdapter.notifyDataSetChanged();
+                    DownloadPackageUI.this.progressBar.setVisibility(8);
+                    DownloadPackageUI.this.packageListView.setVisibility(0);
+                    // ★★★★★ 2026-10-11 补上列表入场动画（用户实测「整合包/光影/模组的动态切换没统一」）：
+                    //   原来**只有模组页**调了 animateList，其余 4 个下载页压根没调用
+                    //   ⇒ 它们一切分类就"瞬间刷出"，与收藏夹/模组页的逐行滑入不一致。
+                    //   ★ 必须 post：此刻 ListView 还没完成布局，getChildCount() 会是 0，动画会空跑。
+                    DownloadPackageUI.this.packageListView.post(() -> {
+                        try {
+                            DownloadPackageUI.this.downloadPackageListAdapter
+                                    .animateList(DownloadPackageUI.this.packageListView);
+                        } catch (Throwable ignored) {
+                        }
+                    });
+                    DownloadPackageUI.this.isSearching = false;
+                }
+                if (message.what == 2) {
+                    DownloadPackageUI.this.progressBar.setVisibility(8);
+                    DownloadPackageUI.this.packageListView.setVisibility(8);
+                    DownloadPackageUI.this.isSearching = false;
+                }
+            }
+        };
+    }
+
+    /**
+     * 「下载源」下拉的选中项 → 实际仓库。
+     *
+     * <p>★ 1.5.0 用户要求整合包也完善：下拉多了一项「CurseForge + Modrinth」，
+     *   选中时用 {@link com.seashore.launcher.launcher.mod.HybridRemoteModRepository} 并发查两站再合并去重。
+     *   （下标 0=CurseForge、1=Modrinth、2=混合。）
+     */
+    private RemoteModRepository repositoryForPosition(int position) {
+        if (position == 2) {
+            return HybridModRepository.MODPACKS;
+        }
+        if (position == 1) {
+            return ModrinthRemoteModRepository.MODPACKS;
+        }
+        return CurseForgeRemoteModRepository.MODPACKS;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    /* loaded from: classes2.dex */
+    public class Repository extends LocalizedRemoteModRepository {
+        private Repository() {
+        }
+
+        @Override // com.seashore.launcher.launcher.mod.LocalizedRemoteModRepository
+        protected RemoteModRepository getBackedRemoteModRepository() {
+            return repositoryForPosition(DownloadPackageUI.this.downloadSourceSpinner.getSelectedItemPosition());
+        }
+
+        @Override // com.seashore.launcher.launcher.mod.RemoteModRepository
+        public RemoteModRepository.Type getType() {
+            return RemoteModRepository.Type.MODPACK;
+        }
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onCreate() {
+        super.onCreate();
+        // ★ 1.5.2（D 方案）：绑定左侧筛选栏与 [☰ 筛选] 开关
+        this.filterPanel = this.activity.findViewById(R.id.download_package_filter_panel);
+        this.toggleFilter = this.activity.findViewById(R.id.toggle_package_filter);
+        // ★★★ 1.5.5：筛选栏常驻左栏 ⇒ 「☰ 筛选」开关没有意义了，隐藏掉。
+        if (this.toggleFilter != null) {
+            this.toggleFilter.setVisibility(View.GONE);
+        }
+        // 强制显示筛选栏（原来是默认 GONE，点「☰ 筛选」才展开）
+        if (this.filterPanel != null) {
+            this.filterPanel.setVisibility(View.VISIBLE);
+        }
+        // ★ 1.5.2：翻页栏
+        this.pagePrev = (android.widget.TextView) this.activity.findViewById(R.id.package_page_prev);
+        this.pageNext = (android.widget.TextView) this.activity.findViewById(R.id.package_page_next);
+        this.pageInfo = (android.widget.TextView) this.activity.findViewById(R.id.package_page_info);
+        if (this.pagePrev != null) {
+            this.pagePrev.setOnClickListener((View.OnClickListener) this);
+        }
+        if (this.pageNext != null) {
+            this.pageNext.setOnClickListener((View.OnClickListener) this);
+        }
+        if (this.toggleFilter != null) {
+            this.toggleFilter.setOnClickListener((View.OnClickListener) this);
+            try {
+                if (this.toggleFilter instanceof android.widget.TextView) {
+                    int tc = com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI
+                            .parseThemeColorSafe(this.activity,
+                                    this.activity.launcherSetting.launcherTheme);
+                    ((android.widget.TextView) this.toggleFilter).setTextColor(tc);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        this.downloadPackageUI = (LinearLayout) this.activity.findViewById(R.id.ui_download_package);
+        this.editName = (EditText) this.activity.findViewById(R.id.download_package_arg_name);
+        this.downloadSourceSpinner = (Spinner) this.activity.findViewById(R.id.download_package_arg_source);
+        this.editVersion = (EditText) this.activity.findViewById(R.id.edit_download_package_arg_version);
+        this.editVersionSpinner = (Spinner) this.activity.findViewById(R.id.download_package_arg_version);
+        this.editCategory = (Spinner) this.activity.findViewById(R.id.download_package_arg_type);
+        this.editSort = (Spinner) this.activity.findViewById(R.id.download_package_arg_sort);
+        Button button = (Button) this.activity.findViewById(R.id.install_package_from_download_page);
+        this.installPackage = button;
+        button.setOnClickListener(this);
+        Button button2 = (Button) this.activity.findViewById(R.id.search_package);
+        this.search = button2;
+        // ★ 1.2.3：搜索旁的「刷新」——和搜索走同一条查询路
+
+        this.refresh = (Button) this.activity.findViewById(R.id.refresh_package_search);
+        // ★★★ 1.5.5：英文查询弹窗入口
+        this.translation = (Button) this.activity.findViewById(R.id.translation_package_search);
+        if (this.translation != null) {
+            this.translation.setOnClickListener(this);
+        }
+
+        if (this.refresh != null) {
+
+            this.refresh.setOnClickListener((View.OnClickListener)this);
+
+        }
+
+        button2.setOnClickListener(this);
+        ArrayList<String> arrayList = new ArrayList<>();
+        this.sourceList = arrayList;
+        arrayList.add(this.context.getString(R.string.download_mod_source_curse_forge));
+        this.sourceList.add(this.context.getString(R.string.download_mod_source_modrinth));
+        // ★ 1.5.0 混合搜索：整合包同样支持两站并发合并
+        this.sourceList.add(this.context.getString(R.string.download_mod_source_hybrid));
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.sourceList);
+        this.sourceListAdapter = arrayAdapter;
+        arrayAdapter.setDropDownViewResource(R.layout.item_spinner_drop_down);
+        this.downloadSourceSpinner.setAdapter((SpinnerAdapter) this.sourceListAdapter);
+        // ★ 2026-10-09 用户要求：「把混合设置为默认」⇒ 停在第 3 项（下标 2）。
+        //   注意必须放在 setAdapter 之后、注册监听之前。
+        this.downloadSourceSpinner.setSelection(2);
+        ArrayList<String> arrayList2 = new ArrayList<>();
+        this.sortList = arrayList2;
+        arrayList2.add(this.context.getString(R.string.download_mod_sort_date));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_heat));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_recent));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_name));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_author));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_downloads));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_category));
+        this.sortList.add(this.context.getString(R.string.download_mod_sort_game_version));
+        ArrayAdapter<String> arrayAdapter2 = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.sortList);
+        this.sortListAdapter = arrayAdapter2;
+        arrayAdapter2.setDropDownViewResource(R.layout.item_spinner_drop_down);
+        this.editSort.setAdapter((SpinnerAdapter) this.sortListAdapter);
+        // ★ 1.2.3：默认按「下载量」排序
+        this.editSort.setSelection(this.sortList.indexOf(this.context.getString(R.string.download_mod_sort_downloads)));
+        ArrayList<String> arrayList3 = new ArrayList<>();
+        this.versionList = arrayList3;
+        arrayList3.add("");
+        this.versionList.addAll(Arrays.asList(RemoteModRepository.DEFAULT_GAME_VERSIONS));
+        ArrayAdapter<String> arrayAdapter3 = new ArrayAdapter<>(this.context, R.layout.item_spinner, this.versionList);
+        this.versionListAdapter = arrayAdapter3;
+        arrayAdapter3.setDropDownViewResource(R.layout.item_spinner_drop_down);
+        this.editVersionSpinner.setAdapter((SpinnerAdapter) this.versionListAdapter);
+        // ★ 1.2.5：照 FCL DownloadPage.java —— 版本筛选下拉第一项是「不筛选」，
+        //   默认停在第一项，**不做任何自动匹配**；玩家自己选版本，查询按所选版本走。
+
+        this.editVersionSpinner.setSelection(0);
+
+        ArrayList<RemoteModRepository.Category> arrayList4 = new ArrayList<>();
+        this.categoryList = arrayList4;
+        arrayList4.add(new RemoteModRepository.Category(CurseForgeRemoteModRepository.CATEGORY_ALL, "0", new ArrayList()));
+        CategorySpinnerAdapter categorySpinnerAdapter = new CategorySpinnerAdapter(this.context, this.categoryList, 4471);
+        this.categoryListAdapter = categorySpinnerAdapter;
+        this.editCategory.setAdapter((SpinnerAdapter) categorySpinnerAdapter);
+        this.downloadSourceSpinner.setOnItemSelectedListener(this);
+        this.editVersionSpinner.setOnItemSelectedListener(this);
+        this.editCategory.setOnItemSelectedListener(this);
+        this.editSort.setOnItemSelectedListener(this);
+        this.editName.setOnEditorActionListener(this);
+        this.editVersion.setOnEditorActionListener(this);
+        this.editVersion.addTextChangedListener(this);
+        this.progressBar = (ProgressBar) this.activity.findViewById(R.id.loading_download_package_list_progress);
+        this.repository = new Repository();
+        this.packageListView = (ListView) this.activity.findViewById(R.id.download_package_list);
+        this.packageList = new ArrayList<>();
+        DownloadResourceAdapter downloadResourceAdapter = new DownloadResourceAdapter(this.context, this.activity, this.repository, this.packageList, 1);
+        this.downloadPackageListAdapter = downloadResourceAdapter;
+        this.packageListView.setAdapter((ListAdapter) downloadResourceAdapter);
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStart() {
+        super.onStart();
+        CustomAnimationUtils.showViewFromLeft(this.downloadPackageUI, this.activity, this.context, false);
+        this.activity.uiManager.downloadUI.startDownloadPackageUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_white));
+        init();
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStop() {
+        super.onStop();
+        CustomAnimationUtils.hideViewToLeft(this.downloadPackageUI, this.activity, this.context, false);
+        if (this.activity.isLoaded) {
+            this.activity.uiManager.downloadUI.startDownloadPackageUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_parent));
+        }
+    }
+
+    private void init() {
+        if (this.packageList.size() == 0 && this.editName.getText().toString().equals("")) {
+            search();
+        }
+    }
+
+    /**
+     * ★★★ 2026-10-25（1.5.5）**弹「模组/整合包对应英文查询」窗口**（照 FCL 的 TranslationDialog）。
+     *
+     * <p>整合包这一页取的是 {@code modpack_data.txt} 那张表（{@code Type.MODPACK}），
+     * 与模组页（{@code mod_data.txt}）**不是同一张** —— 同一个中文名在两张表里
+     * 指向的英文名可能不同，所以这里必须按当前页的类型取表。
+     */
+    private void openTranslationDialog() {
+        try {
+            ModTranslations translations = ModTranslations.getTranslationsByRepositoryType(repository.getType());
+            ModTranslationDialog dialog = new ModTranslationDialog(this.context, this.activity, translations,
+                    new ModTranslationDialog.OnPickListener() {
+                        @Override
+                        public void onPick(String englishName) {
+                            if (englishName == null || englishName.trim().isEmpty()) {
+                                return;
+                            }
+                            DownloadPackageUI.this.editName.setText(englishName.trim());
+                            DownloadPackageUI.this.pageOffset = 0;
+                            DownloadPackageUI.this.search();
+                        }
+                    });
+            dialog.setInitialKeyword(this.editName == null ? "" : this.editName.getText().toString());
+            dialog.show();
+        } catch (Throwable t) {
+            android.widget.Toast.makeText(this.context,
+                    this.context.getString(R.string.translation_dialog_failed),
+                    android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void search() {
+        if (this.isSearching) {
+            return;
+        }
+        new Thread(new Runnable() { // from class: com.seashore.launcher.launcher.uis.game.download.right.DownloadPackageUI$$ExternalSyntheticLambda0
+            @Override // java.lang.Runnable
+            public final void run() {
+                DownloadPackageUI.this.m478xbcd1e517();
+            }
+        }).start();
+    }
+
+    /* JADX INFO: Access modifiers changed from: package-private */
+    /* renamed from: lambda$search$0$com-qcl-launcher-launcher-uis-game-download-right-DownloadPackageUI, reason: not valid java name */
+    public /* synthetic */ void m478xbcd1e517() {
+        try {
+            this.searchHandler.sendEmptyMessage(0);
+            int srcPos = this.downloadSourceSpinner.getSelectedItemPosition();
+            boolean hybrid = srcPos == 2;
+            // ★ 1.5.0 混合模式：分类只有「全部」（两站分类体系不通用）
+            RemoteModRepository.Category category = hybrid
+                    ? null
+                    : (RemoteModRepository.Category) this.categoryListAdapter.getItem(this.editCategory.getSelectedItemPosition());
+            List list = (List) this.repository.search(this.editVersion.getText().toString(), category, this.pageOffset, PAGE_SIZE, this.editName.getText().toString(), RemoteMod.getSortTypeByPosition(this.editSort.getSelectedItemPosition()), RemoteModRepository.SortOrder.DESC).collect(Collectors.toList());
+            List list2 = (List) this.repository.getCategories().collect(Collectors.toList());
+            // ★★★★★ 2026-10-11 修「跨线程改 UI」崩溃（与模组页同因，logcat 实锤）：
+            //   ViewRootImpl$CalledFromWrongThreadException: Only the original thread
+            //   that created a view hierarchy can touch its views.
+            //   本方法跑在 new Thread(...) 里，却直接做了
+            //     packageList.clear/addAll、categoryList.clear/add、notifyDataSetChanged
+            //   —— 全是 UI 操作。异常一抛：本页空白，且视图树状态被搞坏
+            //   ⇒ 切到整合包/资源包/账号页也渲染不出来（"感染"）。
+            //   修法：网络留在后台（上面两行），**UI 操作整段搬回主线程**。
+            final List finalList = list;
+            final List finalCategories = list2;
+            final int finalSrcPos = srcPos;
+            final boolean finalHybrid = hybrid;
+            this.activity.runOnUiThread(() -> {
+            try {
+            this.packageList.clear();
+            this.packageList.addAll(finalList);
+            this.categoryList.clear();
+            if (finalHybrid) {
+                this.categoryList.add(new RemoteModRepository.Category(CurseForgeRemoteModRepository.CATEGORY_ALL, "0", new ArrayList()));
+            } else {
+                this.categoryList.add(new RemoteModRepository.Category(finalSrcPos == 0 ? CurseForgeRemoteModRepository.CATEGORY_ALL : ModrinthRemoteModRepository.CATEGORY_ALL, finalSrcPos == 0 ? "0" : "all", new ArrayList()));
+                for (int i = 0; i < finalCategories.size(); i++) {
+                    this.categoryList.add((RemoteModRepository.Category) finalCategories.get(i));
+                    this.categoryList.addAll(((RemoteModRepository.Category) finalCategories.get(i)).getSubcategories());
+                }
+            }
+            this.searchHandler.sendEmptyMessage(1);
+            // ★ 1.5.2：刷新「第 N 页 / 共 M 页」
+            try {
+                updatePageInfo(this.repository.getLastTotalCount());
+            } catch (Throwable ignored) {
+            }
+            } catch (Throwable uiErr) {
+                // 主线程里出问题也要复位，别让界面永远卡在转圈
+                this.searchHandler.sendEmptyMessage(2);
+            }
+            });
+            // ★ 与模组页一致：聚合模式下只有一源成功时提示"结果可能不全"（照 FCL）
+            final String partialFailed = hybrid ? HybridRemoteModRepository.lastPartialWarning() : null;
+            final boolean hasResults = this.packageList != null && !this.packageList.isEmpty();
+            if (partialFailed != null && hasResults) {
+                final int failedRes = "CURSEFORGE".equals(partialFailed)
+                        ? R.string.download_mod_source_curse_forge : R.string.download_mod_source_modrinth;
+                final int onlyRes = "CURSEFORGE".equals(partialFailed)
+                        ? R.string.download_mod_source_modrinth : R.string.download_mod_source_curse_forge;
+                this.activity.runOnUiThread(() -> {
+                    try {
+                        android.widget.Toast.makeText(DownloadPackageUI.this.context,
+                                DownloadPackageUI.this.context.getString(R.string.download_search_partial,
+                                        DownloadPackageUI.this.context.getString(failedRes),
+                                        DownloadPackageUI.this.context.getString(onlyRes)),
+                                android.widget.Toast.LENGTH_LONG).show();
+                    } catch (Throwable ignoreToast) {
+                    }
+                });
+            }
+        } catch (Exception e) {
+            this.searchHandler.sendEmptyMessage(2);
+            e.printStackTrace();
+        }
+    }
+
+    @Override // android.view.View.OnClickListener
+    public void onClick(View view) {
+        // ★ 1.5.2（D 方案）：[☰ 筛选] —— 折叠/展开左侧筛选栏。
+        //   切换期间抑制 onItemSelected 触发的重新查询（Spinner 重新测量会误触发）。
+        // ★ 1.5.2：上一页 / 下一页
+        if (view == this.pagePrev) {
+            if (this.pageOffset >= PAGE_SIZE) {
+                this.pageOffset -= PAGE_SIZE;
+                search();
+            }
+            return;
+        }
+        if (view == this.pageNext) {
+            this.pageOffset += PAGE_SIZE;
+            search();
+            return;
+        }
+        if (view == this.toggleFilter) {
+            // ★★★ 2026-10-25（1.5.5）：筛选栏已改成**常驻左侧竖排**（照 FCL 的 page_download.xml），
+            //   不再需要「☰ 筛选」折叠 —— 保留分支只为不让它误折叠。
+            return;
+        }
+        if (view == this.installPackage) {
+            this.activity.uiManager.switchMainUI(this.activity.uiManager.installPackageUI);
+        }
+        if (view == this.search || view == this.refresh) {
+            search();
+        }
+        // ★★★ 1.5.5：弹「模组/整合包对应英文查询」窗口（整合包用 modpack_data.txt 那张表）
+        if (view == this.translation) {
+            openTranslationDialog();
+        }
+    }
+
+    @Override // android.text.TextWatcher
+    public void afterTextChanged(Editable editable) {
+        search();
+    }
+
+    @Override // android.widget.AdapterView.OnItemSelectedListener
+    public void onItemSelected(AdapterView<?> adapterView, View view, int i, long j) {
+        // ★ 1.5.2：切换筛选栏期间忽略 Spinner 的误触发
+        if (this.suppressReload) {
+            return;
+        }
+        // ★ 1.5.0：切「下载源」必须重新查一次（以前没监听，玩家看到的还是上一站的旧列表）
+        if (adapterView == this.downloadSourceSpinner) {
+            if (this.editCategory != null) {
+                this.editCategory.setSelection(0);
+            }
+            search();
+            return;
+        }
+        if (adapterView == this.editCategory || adapterView == this.editSort || adapterView == this.editVersionSpinner) {
+            search();
+            if (adapterView == this.editVersionSpinner) {
+                this.editVersion.setText((String) adapterView.getItemAtPosition(i));
+            }
+        }
+    }
+
+    @Override // android.widget.TextView.OnEditorActionListener
+    public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+        if (textView != this.editName && textView != this.editVersion) {
+            return false;
+        }
+        search();
+        return false;
+    }
+}

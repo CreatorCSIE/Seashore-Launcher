@@ -2,7 +2,7 @@
 
 `Seashore Launcher` 是一个**面向 Minecraft 早期历史版本（Pre-Classic、Classic、Indev、Infdev、Alpha、Beta 直至 b1.8 / 1.5.2）的 Android 特化启动器**——在手机上跑官方启动器早已不再提供、桌面端由姊妹项目 Attic 覆盖的那段历史。执行栈继承 [Quanta-Craft-Launcher (QCL)](https://github.com/ALLEN201123/Quanta-Craft-Launcher)（Pojav 后端 + CaciCavallo AWT + 捆绑 OpenJDK 移植 + GL→GLES 转译），以**减法特化**砍掉现代版本支持。
 
-**当前处于调研期**：Phase 0 已收口（2026-10-31），Phase 1 脚手架未开工，暂无可安装构件。
+**当前处于 Phase 1 脚手架期**：Phase 0 已收口（2026-10-31）；QCL 1.5.9 基座已落库并完成品牌剥离（2026-11-01），x86_64 调试包构建通过（2026-11-02，`com.seashore.launcher` 0.1.0），真机验证与发布构件待后续。
 
 名字取自"海岸"：远古版本是被主流潮水留在滩涂上的贝壳，这个项目负责把它们拾回来——与桌面端"阁楼（Attic）"同一收藏观。
 
@@ -45,7 +45,7 @@
 | 调研期 | QCL 画像 / 数据层 / AWT 平台税 / 渲染器取证 | ✅ Phase 0 已收口（2026-10-31，纪要 §1-§16）；渲染三案定罪（§31-§35） |
 | 闸门一 | legacyfix `-javaagent` 上 Android 存活面 | ✅ 已闭环：存活面收敛为游戏侧补丁 + 网络代理，渲染层零触碰（§14/§16） |
 | 闸门二 | 减法可行性依赖图审计 | 🔄 转入 Phase 2 |
-| Phase 1 | 基座落库 + 品牌剥离 + x86_64 AVD 脚手架 | 📋 未开工 |
+| Phase 1 | 基座落库 + 品牌剥离 + x86_64 AVD 脚手架 | 🔄 进行中：QCL 1.5.9 工程主体已迁入（6 模块 + 资产），包名/applicationId/存储路径/名称串已剥离至 Seashore，构建链就位（JDK17 + build-tools 34.0.0 + NDK r27c + wrapper 镜像），**构建通过** `Seashore-debug-0.1.0-x86_64.apk`；装机与修复件挂载验证待做 |
 | Phase 2 | 减法特化（收敛 Pre-Classic → b1.8/1.5.2） | 📋 未开工 |
 | 渲染器 Fork 线 | fork Krypton → 直移 `vert=4→3` → 扩 ABI 内置 | ➡️ 已迁出独立仓 [CreatorCSIE/Seashore-Renderer](https://github.com/CreatorCSIE/Seashore-Renderer)（工单见其 plan.md）；主仓仅留 Phase 1 内置/注册接口 |
 
@@ -62,16 +62,28 @@
 
 ## 🚀 仓库结构与参考件获取
 
-Phase 1 未开工，暂无构建命令。仓库结构：
+仓库结构（Phase 1 基座落库后）：
 
 ```text
 Seashore-Launcher
+├── QCL/                         主应用模块（applicationId com.seashore.launcher，源 = QCL 1.5.9 e49f4b3）
+├── PojavLauncher/ FilePicker/ Terracotta/ ZipTools/ ZipFileSystem/   执行栈子模块（QCL 血脉）
+├── tools/ appletfix_src/ third_party_sources/   汉化资产 / cacio 补丁源码 / 第三方件
+├── gradle/ gradlew* settings.gradle build.gradle                    构建链（wrapper 7.3.3 走腾讯镜像）
 ├── plan.md                      分阶段计划（Phase 0 收口 / Phase 1 脚手架 / Phase 2 减法 + 渲染器 Fork 线工单）
-├── research/qcl-android-shell.md 调研纪要卷宗（§1-§35：QCL 画像、数据层、启动链、渲染三案取证定罪）
+├── research/qcl-android-shell.md 调研纪要卷宗（§1-§36：QCL 画像、数据层、启动链、渲染三案取证定罪、1.5.9 同步判读）
 ├── docs/                        banner 等品牌资产
 ├── reference/                   上游源码稀疏检出（QCL / FCL / Pojav / legacyfix / gl4es / NG-GL4ES，gitignore 不入库）
 └── build/                       取证判读脚本与构件（gitignore 不入库）
 ```
+
+x86_64 调试包构建（需 JDK 17 + Android SDK + NDK r27c，`local.properties` 指 `sdk.dir`）：
+
+```bash
+./gradlew :QCL:assembleDebug '-Darch=x86_64' '-DndkVer=27.2.12479018'
+```
+
+> 注：`ndkVersion` 上游钉 27.3.13750724，本仓加了 `-DndkVer` 覆盖口（默认值不变）；NDK r30 实测不兼容（xhook 用的 `PAGE_SIZE/PAGE_MASK` 已被新 Bionic 头移除）。PowerShell 5 下含点的 `-D` 参数**必须加引号**（裸参按点切分）。
 
 `reference/` 大仓不全拉资产，本地稀疏检出方式：
 
@@ -94,11 +106,11 @@ git -C reference/<name> checkout -f
 
 ### Q1：现在能装能用吗？
 
-不能。当前是调研期，仓库无 APK。第一个可安装形态 = Phase 1 脚手架（行为等价 QCL 1.5.7 现状的 Seashore 骨架）。
+本地可构建、尚未装机验证。x86_64 debug 包已构建通过（Phase 1 步骤 4 的修复件挂载与真机验证完成后才谈"能用"）。
 
 ### Q2：和 QCL 什么关系？为什么不直接给 QCL 提 PR？
 
-继承 + 减法：QCL 定位全能（现代版至 26.x + 远古特化），Seashore 只做纯远古——减法特化提上游必被拒，所以分叉独立新项，纪律 = cherry-pick 非 rebase。渲染根因与修复素材会另行反哺上游（gl4es/Krypton 侧）。
+继承 + 减法：QCL 定位全能（现代版至 26.x + 远古特化），Seashore 只做纯远古——减法特化提上游必被拒，所以分叉独立新项，纪律 = cherry-pick 非 rebase。渲染根因已通过 QCL issue 通报上游启动器；gl4es 侧修复以我方 fork（Seashore-Renderer）落地，不向 gl4es 上游交 PR（2026-11-01 裁定）。
 
 ### Q3：和 Attic-Minecraft-Launcher 什么关系？
 

@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ★ 1.5.0：启动前检查对话框（对照 FCL 的 TaskDialog / dialog_task.xml 完善）
+     - 内容区整体可上下滑动（ScrollView），小屏或 Vulkan 行出现时不再被裁掉
+     - ★ 2026-10-09 用户要求：**日志/控制台区整个删除**（原 check_log_scroll/check_log_view
+       连字段与 appendLog/clearLog 一并移除），此窗口只保留步骤标识 + 取消按钮
+     - 高度不再写死 305dp，改由 Java 侧按屏幕高度控制，避免小屏溢出
+     - 根用 match_parent + layout_gravity="center"，配合 Java 侧「窗口宽=内容宽」才能真正居中 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="#00000000"
+    android:padding="15dp"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center">
+
+    <TextView
+        android:singleLine="true"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/text_size_middle"
+        android:textColor="@color/colorPureBlack"
+        android:textStyle="bold"
+        android:text="@string/launch_check_dialog_title"/>
+
+    <!-- 可滑动内容区：所有检查行 + 下载任务列表 + 实时日志 -->
+    <ScrollView
+        android:id="@+id/check_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="5dp"
+        android:scrollbars="vertical"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_marginTop="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_java_state"/>
+
+        <TextView
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_java"/>
+
+    </LinearLayout>
+
+    <!-- ★ 1.5.0 新增：Vulkan 检测行（仅 Minecraft 26.2+ 显示；低版本默认 gone）。
+         26.3 起对着色器/Vulkan 要求更严，这里在启动前先判设备是否扛得住，扛不住就拦住并引导。 -->
+    <LinearLayout
+        android:id="@+id/check_vulkan_row"
+        android:visibility="gone"
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_vulkan_state"/>
+
+        <TextView
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:id="@+id/check_vulkan_text"
+            android:text="@string/launch_check_dialog_vulkan"/>
+
+    </LinearLayout>
+
+    <!-- ★ 2026-10-09 用户要求：控制台里再加两行检测（模组检测 / 游戏版本检测），且要「超 FCL」——
+         FCL 只做「有没有加载器」，我们这两行会给出**逐条可核对的详情**（重复 mod id / 版本不符 /
+         缺前置 / 空文件 / json id 与目录名不一致 / 缺客户端 jar 等），点行可看详情。 -->
+    <LinearLayout
+        android:id="@+id/check_mod_row"
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_mod_state"/>
+
+        <TextView
+            android:id="@+id/check_mod_text"
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_mod"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/check_game_version_row"
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_game_version_state"/>
+
+        <TextView
+            android:id="@+id/check_game_version_text"
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_game_version"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_lib_state"/>
+
+        <TextView
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_lib"/>
+
+    </LinearLayout>
+
+    <com.seashore.launcher.launcher.view.list.MaxHeightRecyclerView
+        android:id="@+id/download_task_list"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="27dp"
+        android:layout_marginTop="12dp"
+        app:maxRecyclerHeight="42" />
+
+    <LinearLayout
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_account_state"/>
+
+        <TextView
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_login"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#80FFFFFF"
+        android:paddingLeft="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="5dp"
+            android:layout_width="12dp"
+            android:layout_height="12sp"
+            android:background="@drawable/ic_baseline_arrow_black"
+            android:layout_gravity="center"
+            android:id="@+id/check_launch_state"/>
+
+        <TextView
+            android:singleLine="true"
+            android:layout_marginStart="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:text="@string/launch_check_dialog_launch"/>
+
+    </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_marginTop="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:singleLine="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="@color/colorPureBlack"
+            android:textSize="@dimen/text_size_middle"
+            android:id="@+id/download_speed_text"/>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <Button
+            android:singleLine="true"
+            android:textAllCaps="false"
+            android:layout_width="50dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="@string/dialog_install_game_exit"
+            android:textSize="@dimen/text_size_middle"
+            android:textColor="@color/colorPureBlack"
+            android:background="#80FFFFFF"
+            android:id="@+id/cancel_launch_game"/>
+
+    </LinearLayout>
+
+</LinearLayout>

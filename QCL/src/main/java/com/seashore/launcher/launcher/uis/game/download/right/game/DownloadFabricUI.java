@@ -1,0 +1,197 @@
+package com.seashore.launcher.launcher.uis.game.download.right.game;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import com.google.gson.Gson;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.download.fabric.FabricGameVersion;
+import com.seashore.launcher.launcher.download.fabric.FabricLoaderVersion;
+import com.seashore.launcher.launcher.list.download.minecraft.DownloadFabricListAdapter;
+import com.seashore.launcher.launcher.uis.game.download.DownloadUrlSource;
+import com.seashore.launcher.launcher.uis.tools.BaseUI;
+import com.seashore.launcher.utils.animation.CustomAnimationUtils;
+import com.seashore.launcher.utils.io.NetworkUtils;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+
+import com.seashore.launcher.R;
+/* loaded from: classes2.dex */
+public class DownloadFabricUI extends BaseUI implements View.OnClickListener {
+    private static final String BMCLAPI_GAME_META_URL = "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/game";
+    private static final String BMCLAPI_LOADER_META_URL = "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader";
+    private static final String OFFICIAL_GAME_META_URL = "https://meta.fabricmc.net/v2/versions/game";
+    private static final String OFFICIAL_LOADER_META_URL = "https://meta.fabricmc.net/v2/versions/loader";
+    private TextView back;
+    public LinearLayout downloadFabricUI;
+    private ListView fabricListView;
+    public boolean install;
+    private final Handler loadingHandler;
+    private ProgressBar progressBar;
+    public String version;
+
+    /**
+     * ★★★★★ 2026-10-17（1.5.2 新增）**是否列出 Legacy Fabric 的版本**。
+     *
+     * <p>Legacy Fabric 是 Fabric 官方为 MC **1.8.9 ~ 1.13.2** 保留的旧分支，
+     * 它的 meta 接口与官方 Fabric 完全同构，只有域名不同：
+     * <pre>
+     *   官方 Fabric   https://meta.fabricmc.net/v2/versions/{loader,game}
+     *   Legacy Fabric https://meta.legacyfabric.net/v2/versions/{loader,game}
+     * </pre>
+     * ⇒ 本页只需按这个开关换域名，列表/安装流程完全复用。
+     * <p>★ 注意：BMCLAPI 镜像**没有** legacyfabric 的镜像，
+     * 所以 Legacy 模式下强制走官方域名（否则会 404 且没人知道为什么）。
+     */
+    public boolean legacy;
+
+    public DownloadFabricUI(Context context, MainActivity mainActivity) {
+        super(context, mainActivity);
+        this.loadingHandler = new Handler() { // from class: com.seashore.launcher.launcher.uis.game.download.right.game.DownloadFabricUI.1
+            @Override // android.os.Handler
+            public void handleMessage(Message message) {
+                super.handleMessage(message);
+                if (message.what == 0) {
+                    DownloadFabricUI.this.fabricListView.setVisibility(8);
+                    DownloadFabricUI.this.progressBar.setVisibility(0);
+                    DownloadFabricUI.this.back.setVisibility(8);
+                }
+                if (message.what == 1) {
+                    DownloadFabricUI.this.fabricListView.setVisibility(0);
+                    DownloadFabricUI.this.progressBar.setVisibility(8);
+                    DownloadFabricUI.this.back.setVisibility(8);
+                }
+                if (message.what == 2) {
+                    DownloadFabricUI.this.fabricListView.setVisibility(8);
+                    DownloadFabricUI.this.progressBar.setVisibility(8);
+                    DownloadFabricUI.this.back.setVisibility(0);
+                }
+            }
+        };
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onCreate() {
+        super.onCreate();
+        this.downloadFabricUI = (LinearLayout) this.activity.findViewById(R.id.ui_install_fabric_list);
+        // ★ 1.5.0：顶部「提示」条已移除（用户要求：太占地方）。
+        //   原来这里对 hintLayout 是**无条件** setOnClickListener(this)，
+        //   控件删掉后 findViewById 返回 null → UIManager 构造期 NPE 直接打崩启动器，
+        //   所以字段 / 查找 / 监听三处必须一起删。
+        this.fabricListView = (ListView) this.activity.findViewById(R.id.fabric_version_list);
+        this.progressBar = (ProgressBar) this.activity.findViewById(R.id.loading_fabric_list_progress);
+        TextView textView = (TextView) this.activity.findViewById(R.id.back_to_install_ui_fabric);
+        this.back = textView;
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStart() {
+        super.onStart();
+        this.activity.showBarTitle(this.context.getResources().getString(R.string.fabric_list_ui_title), false, true);
+        CustomAnimationUtils.showViewFromLeft(this.downloadFabricUI, this.activity, this.context, true);
+        init();
+    }
+
+    @Override // com.seashore.launcher.launcher.uis.tools.BaseUI, com.seashore.launcher.launcher.uis.tools.UILifecycleCallbacks
+    public void onStop() {
+        super.onStop();
+        CustomAnimationUtils.hideViewToLeft(this.downloadFabricUI, this.activity, this.context, true);
+    }
+
+    private void init() {
+        new Thread(new Runnable() { // from class: com.seashore.launcher.launcher.uis.game.download.right.game.DownloadFabricUI$$ExternalSyntheticLambda0
+            @Override // java.lang.Runnable
+            public final void run() {
+                DownloadFabricUI.this.m485x30240bea();
+            }
+        }).start();
+    }
+
+    /* JADX INFO: Access modifiers changed from: package-private */
+    /* renamed from: lambda$init$1$com-qcl-launcher-launcher-uis-game-download-right-game-DownloadFabricUI, reason: not valid java name */
+    public /* synthetic */ void m485x30240bea() {
+        String str;
+        String str2;
+        this.loadingHandler.sendEmptyMessage(0);
+        // ★ 1.5.2：Legacy Fabric 走官方 meta.legacyfabric.net
+        //   （BMCLAPI 没有 legacyfabric 镜像，强行用镜像只会 404）
+        if (this.legacy) {
+            str = "https://meta.legacyfabric.net/v2/versions/loader";
+            str2 = "https://meta.legacyfabric.net/v2/versions/game";
+        } else if (DownloadUrlSource.getSource(this.activity.launcherSetting.downloadUrlSource) == 0) {
+            str = "https://meta.fabricmc.net/v2/versions/loader";
+            str2 = "https://meta.fabricmc.net/v2/versions/game";
+        } else {
+            str = "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader";
+            str2 = "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/game";
+        }
+        ArrayList arrayList = new ArrayList();
+        ArrayList arrayList2 = new ArrayList();
+        try {
+            String doGet = NetworkUtils.doGet(NetworkUtils.toURL(str2));
+            Gson gson = new Gson();
+            arrayList.addAll(Arrays.asList((FabricGameVersion[]) gson.fromJson(doGet, FabricGameVersion[].class)));
+            ArrayList arrayList3 = new ArrayList();
+            Iterator it = arrayList.iterator();
+            while (it.hasNext()) {
+                arrayList3.add(((FabricGameVersion) it.next()).version);
+            }
+            arrayList2.addAll(Arrays.asList((FabricLoaderVersion[]) gson.fromJson(NetworkUtils.doGet(NetworkUtils.toURL(str)), FabricLoaderVersion[].class)));
+            if (!arrayList3.contains(this.version)) {
+                // ★★★★★ 1.5.7（2026-10-27）：原来这里只 sendEmptyMessage(2) ——
+                //   列表隐藏、只留一个返回键，玩家看到的是「点进去一片空白」，
+                //   完全不知道是版本不支持。现在至少说清楚原因（Legacy 走专门文案）。
+                final String badMc = this.version;
+                final boolean isLegacy = this.legacy;
+                this.activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            String tip = isLegacy
+                                    ? com.seashore.launcher.launcher.download.fabric.LegacyFabricSupport
+                                            .loaderUnsupportedText(badMc)
+                                    : "Fabric 没有适用于 Minecraft " + badMc + " 的加载器版本。";
+                            android.widget.Toast.makeText(DownloadFabricUI.this.context, tip,
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                });
+                this.loadingHandler.sendEmptyMessage(2);
+                return;
+            }
+            final DownloadFabricListAdapter downloadFabricListAdapter = new DownloadFabricListAdapter(this.context, this.activity, this.version, arrayList2, this.install);
+            this.activity.runOnUiThread(new Runnable() { // from class: com.seashore.launcher.launcher.uis.game.download.right.game.DownloadFabricUI$$ExternalSyntheticLambda1
+                @Override // java.lang.Runnable
+                public final void run() {
+                    DownloadFabricUI.this.m484x691824e9(downloadFabricListAdapter);
+                }
+            });
+            this.loadingHandler.sendEmptyMessage(1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: package-private */
+    /* renamed from: lambda$init$0$com-qcl-launcher-launcher-uis-game-download-right-game-DownloadFabricUI, reason: not valid java name */
+    public /* synthetic */ void m484x691824e9(DownloadFabricListAdapter downloadFabricListAdapter) {
+        this.fabricListView.setAdapter((ListAdapter) downloadFabricListAdapter);
+    }
+
+    @Override // android.view.View.OnClickListener
+    public void onClick(View view) {
+        // ★ 1.5.0：`view == hintLayout` → 打开赞助页的分支已随提示条一起移除。
+        if (view == this.back) {
+            this.activity.backToLastUI();
+        }
+    }
+}

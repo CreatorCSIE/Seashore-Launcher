@@ -1,0 +1,412 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.content.Context
+ *  android.os.AsyncTask
+ *  androidx.recyclerview.widget.RecyclerView
+ *  androidx.recyclerview.widget.RecyclerView$Adapter
+ *  com.google.gson.Gson
+ */
+package com.seashore.launcher.launcher.launch.check;
+
+import android.content.Context;
+import android.os.AsyncTask;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.gson.Gson;
+import com.seashore.launcher.launcher.MainActivity;
+import com.seashore.launcher.launcher.download.game.LegacyArchiveInstallTask;
+import com.seashore.launcher.launcher.game.Argument;
+import com.seashore.launcher.launcher.game.Artifact;
+import com.seashore.launcher.launcher.game.AssetIndex;
+import com.seashore.launcher.launcher.game.AssetIndexInfo;
+import com.seashore.launcher.launcher.game.AssetObject;
+import com.seashore.launcher.launcher.game.DownloadInfo;
+import com.seashore.launcher.launcher.game.Library;
+import com.seashore.launcher.launcher.game.RuledArgument;
+import com.seashore.launcher.launcher.game.Version;
+import com.seashore.launcher.launcher.list.install.DownloadTaskListAdapter;
+import com.seashore.launcher.launcher.list.install.DownloadTaskListBean;
+import com.seashore.launcher.launcher.setting.game.PrivateGameSetting;
+import com.seashore.launcher.launcher.uis.game.download.DownloadUrlSource;
+import com.seashore.launcher.task.DownloadTask;
+import com.seashore.launcher.utils.file.FileStringUtils;
+import com.seashore.launcher.utils.file.FileUtils;
+import com.seashore.launcher.utils.gson.GsonUtils;
+import com.seashore.launcher.utils.gson.JsonUtils;
+import com.seashore.launcher.utils.io.NetworkUtils;
+import com.seashore.launcher.utils.platform.Bits;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import com.seashore.launcher.R;
+public class CheckLibTask
+extends AsyncTask<RecyclerView, Integer, Exception> {
+    private final MainActivity activity;
+    private final String launchVersion;
+    private final CheckLibCallback callback;
+
+    public CheckLibTask(MainActivity activity, String launchVersion, CheckLibCallback callback) {
+        this.activity = activity;
+        this.launchVersion = launchVersion;
+        this.callback = callback;
+    }
+
+    protected void onPreExecute() {
+        super.onPreExecute();
+        this.callback.onStart();
+    }
+
+    protected Exception doInBackground(RecyclerView ... recyclerViews) {
+        String assetIndexString;
+        String settingPath = this.launchVersion + "/qcl.cfg";
+        PrivateGameSetting privateGameSetting = new File(settingPath).exists() && GsonUtils.getPrivateGameSettingFromFile(settingPath) != null && (GsonUtils.getPrivateGameSettingFromFile((String)settingPath).forceEnable || GsonUtils.getPrivateGameSettingFromFile((String)settingPath).enable) ? GsonUtils.getPrivateGameSettingFromFile(settingPath) : this.activity.privateGameSetting;
+        // ★★★ 1.2.5 修：原来这里是 `return null` —— 一开「不检查游戏文件」，
+        //   连**音效音乐**（assets 索引 + assets/objects + gameDir/resources 映射）
+        //   也一起被跳过了。而 ModLoader / Babric 装完会自动帮这个版本打开这个开关，
+        //   结果就是：加载器明明装好了，**远古版本却没有声音**（音频从来没下过）。
+        //
+        //   现在改成：音效音乐照常检查、照常补下；而且开了这个开关时
+        //   文件补不下来**不拦启动**（保持原来「不检查 = 一定能进游戏」的语义，离线也能进）。
+        final boolean skipGameFiles = privateGameSetting.notCheckMinecraft;
+        String versionJson = FileStringUtils.getStringFromFile(this.launchVersion + "/" + new File(this.launchVersion).getName() + ".json");
+        Gson gson = JsonUtils.defaultGsonBuilder().registerTypeAdapter(Artifact.class, (Object)new Artifact.Serializer()).registerTypeAdapter(Bits.class, (Object)new Bits.Serializer()).registerTypeAdapter(RuledArgument.class, (Object)new RuledArgument.Serializer()).registerTypeAdapter(Argument.class, (Object)new Argument.Deserializer()).create();
+        Version version = (Version)gson.fromJson(versionJson, Version.class);
+        if (version == null) {
+            try {
+                String id2 = new File(this.launchVersion).getName();
+                File jar = new File(this.launchVersion, id2 + ".jar");
+                if (jar.isFile()) {
+                    String rebuilt = LegacyArchiveInstallTask.buildLegacyJson((Context)this.activity, id2, "");
+                    FileStringUtils.writeFile(this.launchVersion + "/" + id2 + ".json", rebuilt);
+                    version = (Version)gson.fromJson(rebuilt, Version.class);
+                }
+            }
+            catch (Throwable t) {
+                t.printStackTrace();
+            }
+            if (version == null) {
+                return new Exception(this.activity.getString(R.string.launch_check_dialog_exception_lib_failed));
+            }
+        }
+        // ★★★ 1.1.8：old_alpha（infdev/alpha，Applet 结构）旧 json 缺 --tweakClass AlphaVanillaTweaker
+        // 时自动重建（老用户升级后无需手动删 json）。默认 VanillaTweaker 会找不存在的
+        // net.minecraft.client.Minecraft 而崩溃。
+        if (versionJson != null && versionJson.contains("\"old_alpha\"") && !versionJson.contains("tweakClass")) {
+            try {
+                String id2 = new File(this.launchVersion).getName();
+                String rebuilt = LegacyArchiveInstallTask.buildLegacyJson((Context)this.activity, id2, "");
+                FileStringUtils.writeFile(this.launchVersion + "/" + id2 + ".json", rebuilt);
+                version = (Version)gson.fromJson(rebuilt, Version.class);
+            }
+            catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+        // ★★★ 1.3.8：classic/indev/infdev 需要 launchwrapper 1.6（1.5 认不了 com.mojang.minecraft.MinecraftApplet）。
+        // 老用户升级前装的 json 里还是 1.5，这里自动重建一次，不用手动删 json。
+        if (versionJson != null && LegacyArchiveInstallTask.legacyJsonOutdated(new File(this.launchVersion).getName(), versionJson)) {
+            try {
+                String id2 = new File(this.launchVersion).getName();
+                String rebuilt = LegacyArchiveInstallTask.buildLegacyJson((Context)this.activity, id2, "");
+                FileStringUtils.writeFile(this.launchVersion + "/" + id2 + ".json", rebuilt);
+                version = (Version)gson.fromJson(rebuilt, Version.class);
+            }
+            catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+        ArrayList<DownloadTaskListBean> list = new ArrayList<DownloadTaskListBean>();
+        // ===== FCL checkGameCompletionAsync 对齐：版本 jar 缺失或空文件时自动补下 =====
+        String versionName = new File(this.launchVersion).getName();
+        File versionJarFile = new File(this.launchVersion, versionName + ".jar");
+        if (!versionJarFile.isFile() || versionJarFile.length() == 0) {
+            DownloadInfo downloadInfo = version.getDownloadInfo();
+            String jarUrl = DownloadUrlSource.replaceSubUrl(downloadInfo.getUrl(), DownloadUrlSource.getSource(this.activity.launcherSetting.downloadUrlSource), DownloadUrlSource.VERSION_JAR);
+            if (jarUrl == null || jarUrl.equals("")) {
+                jarUrl = downloadInfo.getUrl();
+            }
+            list.add(new DownloadTaskListBean(versionName + ".jar", jarUrl, versionJarFile.getAbsolutePath(), downloadInfo.getSha1()).withFallback(downloadInfo.getUrl()));
+        }
+        AssetIndexInfo assetIndexInfo = version.getAssetIndex();
+        if (assetIndexInfo == null || assetIndexInfo.id == null) {
+            assetIndexString = "{\"objects\":{}}";
+        } else {
+            String localIndexPath = this.activity.launcherSetting.gameFileDirectory + "/assets/indexes/" + assetIndexInfo.id + ".json";
+            assetIndexString = null;
+            if (CheckLibTask.isRightFile(localIndexPath, assetIndexInfo.getSha1())) {
+                // FCL GameAssetIndexDownloadTask 对齐：本地索引必须能解析出有效对象表，损坏/空索引视为不存在
+                String localIndex = FileStringUtils.getStringFromFile(localIndexPath);
+                try {
+                    AssetIndex parsedIndex = (AssetIndex) gson.fromJson(localIndex, AssetIndex.class);
+                    if (parsedIndex != null && parsedIndex.getObjects() != null && !parsedIndex.getObjects().isEmpty()) {
+                        assetIndexString = localIndex;
+                    }
+                }
+                catch (Throwable t) {
+                    assetIndexString = null;
+                }
+            }
+            if (assetIndexString == null) {
+                String assetIndexUrl = DownloadUrlSource.getSubUrl(DownloadUrlSource.getSource(this.activity.launcherSetting.downloadUrlSource), 3) + assetIndexInfo.getUrl().replace("https://launchermeta.mojang.com", "").replace("https://piston-meta.mojang.com", "");
+                try {
+                    assetIndexString = NetworkUtils.doGet(NetworkUtils.toURL(assetIndexUrl));
+                    list.add(new DownloadTaskListBean(assetIndexInfo.id + ".json", assetIndexUrl, localIndexPath, assetIndexInfo.getSha1()).withFallback(CheckLibTask.alternateSourceUrl(assetIndexUrl, 3, assetIndexInfo.getUrl())));
+                }
+                catch (IOException e) {
+                    e.printStackTrace();
+                    // ★★ 2026-10-09 用户实测修复：「整合包下载弹出 资源文件下载失败」。
+                    //   原逻辑是「拉不到资源索引 && !不检查游戏文件 ⇒ 直接抛错拦启动」。
+                    //   但**索引缺失本来就无害**（下面注释自己写着："没有索引就等于没有音频要补，
+                    //   游戏照样进"），而且索引不存在时 sha1 校验必然失败 ⇒ 必然尝试联网拉 ⇒
+                    //   网络/镜像抖一下就把玩家拦在门外（实测：游戏明明能进）。
+                    //   ⇒ 改为**一律降级放过**：记日志 + 用空索引继续，交给后面的资源下载去补。
+                    android.util.Log.w("jrelog",
+                            "[启动前检查] 资源索引 " + assetIndexInfo.id
+                                    + " 拉取失败，已降级放过（不影响启动）：" + e);
+                    assetIndexString = "{\"objects\":{}}";
+                }
+            }
+        }
+        AssetIndex assetIndex = (AssetIndex)gson.fromJson(assetIndexString, AssetIndex.class);
+        for (Library library : version.getLibraries()) {
+            String libFallback;
+            String libUrl;
+            // FCL GameLibrariesTask 对齐：不适用当前环境的库（规则不匹配）直接跳过
+            if (!library.appliesToCurrentEnvironment()) continue;
+            if (CheckLibTask.isRightFile(this.activity.launcherSetting.gameFileDirectory + "/libraries/" + library.getPath(), library.getDownload().getSha1()) || library.getPath().contains("tv/twitch") || library.getPath().contains("lwjgl-platform-2.9.1-nightly")) continue;
+            if (library.getDownload().getUrl() != null && !library.getDownload().getUrl().equals("")) {
+                libUrl = library.getDownload().getUrl();
+                libFallback = CheckLibTask.alternateSourceUrl(libUrl, 5, null);
+            } else {
+                libUrl = DownloadUrlSource.getSubUrl(DownloadUrlSource.getSource(this.activity.launcherSetting.downloadUrlSource), 5) + "/" + library.getPath();
+                libFallback = "https://bmclapi2.bangbang93.com/maven/" + library.getPath();
+            }
+            list.add(new DownloadTaskListBean(library.getArtifactFileName(), libUrl, this.activity.launcherSetting.gameFileDirectory + "/libraries/" + library.getPath(), library.getDownload().getSha1()).withFallback(libFallback));
+        }
+        int assetSource = DownloadUrlSource.getSource(this.activity.launcherSetting.downloadUrlSource);
+        for (AssetObject object : assetIndex.getObjects().values()) {
+            if (CheckLibTask.isRightFile(this.activity.launcherSetting.gameFileDirectory + "/assets/objects/" + object.getLocation(), object.getHash())) continue;
+            // FCL 下载候选对齐：主 URL = 用户所选源，fallback = 另一条源（BMCLAPI ↔ 官方双向兜底）
+            String objUrl = DownloadUrlSource.getSubUrl(assetSource, 4) + "/" + object.getLocation();
+            String objFallback = assetSource == DownloadUrlSource.DOWNLOAD_URL_SOURCE_BMCLAPI
+                    ? "https://resources.download.minecraft.net/" + object.getLocation()
+                    : DownloadUrlSource.BMCLAPI_BASE + "/assets/" + object.getLocation();
+            list.add(new DownloadTaskListBean(object.getHash(), objUrl, this.activity.launcherSetting.gameFileDirectory + "/assets/objects/" + object.getLocation(), object.getHash()).withFallback(objFallback));
+        }
+        if (list.size() > 0) {
+        final DownloadTaskListAdapter downloadTaskListAdapter = new DownloadTaskListAdapter((Context)this.activity);
+        this.activity.runOnUiThread(() -> {
+            recyclerViews[0].setAdapter((RecyclerView.Adapter)downloadTaskListAdapter);
+            recyclerViews[0].setVisibility(0);
+        });
+        ArrayList failedFile = new ArrayList();
+        int maxTask = this.activity.launcherSetting.autoDownloadTaskQuantity ? 64 : this.activity.launcherSetting.maxDownloadTask;
+        ThreadPoolExecutor threadPool = new ThreadPoolExecutor(maxTask, maxTask, 30L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadPoolExecutor.CallerRunsPolicy());
+        for (int j = 0; j < list.size(); ++j) {
+            final DownloadTaskListBean bean = (DownloadTaskListBean)list.get(j);
+            String url = bean.url;
+            String path = bean.path;
+            String sha1 = bean.sha1;
+            threadPool.execute(() -> {
+                int tryTimes = 5;
+                for (int i = 0; i < tryTimes; ++i) {
+                    if (this.isCancelled()) {
+                        threadPool.shutdownNow();
+                        return;
+                    }
+                    this.activity.runOnUiThread(() -> downloadTaskListAdapter.addDownloadTask(bean));
+                    DownloadTask.DownloadFeedback fb = new DownloadTask.DownloadFeedback(){
+
+                        @Override
+                        public void updateProgress(long curr, long max) {
+                            long progress = 100L * curr / max;
+                            bean.progress = (int)progress;
+                            CheckLibTask.this.activity.runOnUiThread(() -> downloadTaskListAdapter.onProgress(bean));
+                        }
+
+                        @Override
+                        public void updateSpeed(String speed) {
+                        }
+                    };
+                    if (DownloadTask.downloadFileMonitored(bean.urlForAttempt(i), path, sha1, fb)) {
+                        this.activity.runOnUiThread(() -> downloadTaskListAdapter.onComplete(bean));
+                        break;
+                    }
+                    if (i == tryTimes - 1) {
+                        failedFile.add(bean);
+                    }
+                    this.activity.runOnUiThread(() -> downloadTaskListAdapter.onComplete(bean));
+                }
+            });
+        }
+        threadPool.shutdown();
+        try {
+            threadPool.awaitTermination(1L, TimeUnit.HOURS);
+        }
+        catch (InterruptedException e) {
+            e.printStackTrace();
+            return e;
+        }
+        if (failedFile.size() > 0) {
+            ArrayList retryList = new ArrayList(failedFile);
+            failedFile.clear();
+            ThreadPoolExecutor retryPool = new ThreadPoolExecutor(maxTask, maxTask, 30L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadPoolExecutor.CallerRunsPolicy());
+            for (int j = 0; j < retryList.size(); ++j) {
+                final DownloadTaskListBean bean = (DownloadTaskListBean)retryList.get(j);
+                retryPool.execute(() -> {
+                    int tryTimes = 3;
+                    for (int i = 0; i < tryTimes; ++i) {
+                        if (this.isCancelled()) {
+                            retryPool.shutdownNow();
+                            return;
+                        }
+                        DownloadTask.DownloadFeedback fb = new DownloadTask.DownloadFeedback(){
+
+                            @Override
+                            public void updateProgress(long curr, long max) {
+                                bean.progress = (int)(100L * curr / max);
+                                CheckLibTask.this.activity.runOnUiThread(() -> downloadTaskListAdapter.onProgress(bean));
+                            }
+
+                            @Override
+                            public void updateSpeed(String speed) {
+                            }
+                        };
+                        if (DownloadTask.downloadFileMonitored(bean.urlForAttempt(i + 1), bean.path, bean.sha1, fb)) {
+                            this.activity.runOnUiThread(() -> downloadTaskListAdapter.onComplete(bean));
+                            break;
+                        }
+                        if (i != tryTimes - 1) continue;
+                        failedFile.add(bean);
+                        this.activity.runOnUiThread(() -> downloadTaskListAdapter.onComplete(bean));
+                    }
+                });
+            }
+            retryPool.shutdown();
+            try {
+                retryPool.awaitTermination(1L, TimeUnit.HOURS);
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+                return e;
+            }
+        }
+        this.activity.runOnUiThread(() -> recyclerViews[0].setVisibility(8));
+        if (failedFile.size() > 0) {
+            // ★ 1.2.5：开了「不检查游戏文件」的版本（装了 ModLoader/Babric 的古早版本）
+            //   缺文件只记日志，**不拦启动** —— 否则玩家离线/某个源挂了就彻底进不去。
+            if (skipGameFiles) {
+                android.util.Log.w("CheckLib", "该版本开着「不检查游戏文件」，"
+                        + failedFile.size() + " 个文件没补上，但继续启动");
+            } else {
+                return new Exception(this.activity.getString(R.string.launch_check_dialog_exception_lib_failed));
+            }
+        }
+        }
+        // ===== FCL DefaultGameRepository.reconstructAssets 对齐：资产映射 =====
+        // virtual/map_to_resources 索引（pre-1.6 远古版等）把对象铺进 assets/virtual/<id>/ 与 gameDir/resources/，
+        // 远古版 MC 从 gameDir/resources/ 读音效音乐——这是 b1.7.3 无声的根因修复。幂等，只复制缺失目标。
+        try {
+            if (assetIndex != null && assetIndex.isVirtual() && assetIndex.getObjects() != null && !assetIndex.getObjects().isEmpty()) {
+                String gameDirForMap;
+                if (privateGameSetting.gameDirSetting.type == 1) {
+                    gameDirForMap = this.launchVersion;
+                } else if (privateGameSetting.gameDirSetting.type == 2) {
+                    gameDirForMap = privateGameSetting.gameDirSetting.path;
+                } else {
+                    gameDirForMap = this.activity.launcherSetting.gameFileDirectory;
+                }
+                String assetsRoot = this.activity.launcherSetting.gameFileDirectory + "/assets";
+                String assetIdForMap = (assetIndexInfo != null && assetIndexInfo.id != null) ? assetIndexInfo.id : "legacy";
+                String virtualRoot = assetsRoot + "/virtual/" + assetIdForMap;
+                String resourcesRoot = gameDirForMap + "/resources";
+                boolean mapToResources = assetIndex.needMapToResources();
+                for (java.util.Map.Entry<String, AssetObject> entry : assetIndex.getObjects().entrySet()) {
+                    String key = entry.getKey();
+                    AssetObject mapObj = entry.getValue();
+                    if (mapObj == null || key == null || key.length() == 0 || key.contains("..")) continue;
+                    String original = assetsRoot + "/objects/" + mapObj.getLocation();
+                    if (!new File(original).isFile()) continue;
+                    File targetVirtual = new File(virtualRoot, key);
+                    if (!targetVirtual.isFile()) {
+                        File parentVirtual = targetVirtual.getParentFile();
+                        if (parentVirtual != null) parentVirtual.mkdirs();
+                        FileUtils.copyFile(original, targetVirtual.getAbsolutePath());
+                    }
+                    if (mapToResources) {
+                        File targetRes = new File(resourcesRoot, key);
+                        if (!targetRes.isFile()) {
+                            File parentRes = targetRes.getParentFile();
+                            if (parentRes != null) parentRes.mkdirs();
+                            FileUtils.copyFile(original, targetRes.getAbsolutePath());
+                        }
+                    }
+                    // ★ 1.2.5：远古版本（pre-1.6 的 virtual 索引）里有一批 **不在 minecraft/ 下**
+                    //   的条目，最典型的就是窗口图标 icons/icon_16x16.png、icons/icon_32x32.png ——
+                    //   游戏本体（VanillaTweakInjector）是按 `assets/icons/xxx` 直接读的，
+                    //   只铺 virtual/ 和 resources/ 都不管用，会刷一堆
+                    //   `javax.imageio.IIOException: Can't read input file!`（玩家看着像出错/卡住）。
+                    //   所以这类「根目录下的散件」额外按原路径再铺一份到 assets/ 下。
+                    if (key.startsWith("icons/") || key.startsWith("pack.")) {
+                        File targetAssets = new File(assetsRoot, key);
+                        if (!targetAssets.isFile()) {
+                            File parentAssets = targetAssets.getParentFile();
+                            if (parentAssets != null) parentAssets.mkdirs();
+                            FileUtils.copyFile(original, targetAssets.getAbsolutePath());
+                        }
+                    }
+                }
+            }
+        }
+        catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return null;
+    }
+
+    private static String alternateSourceUrl(String currentUrl, int type, String officialUrl) {
+        if (currentUrl == null || currentUrl.isEmpty()) {
+            return null;
+        }
+        if (currentUrl.startsWith("https://bmclapi2.bangbang93.com")) {
+            if (officialUrl != null && !officialUrl.equals(currentUrl)) {
+                return officialUrl;
+            }
+            return null;
+        }
+        String mirror = DownloadUrlSource.replaceSubUrl(currentUrl, 1, type);
+        return mirror != null && !mirror.equals(currentUrl) ? mirror : null;
+    }
+
+    protected void onProgressUpdate(Integer ... values) {
+        super.onProgressUpdate(values);
+    }
+
+    protected void onPostExecute(Exception e) {
+        super.onPostExecute(e);
+        this.callback.onFinish(e);
+    }
+
+    public static boolean isRightFile(String path, String sha1) {
+        if (new File(path).exists()) {
+            if (sha1 != null && !sha1.equals("")) {
+                return Objects.equals(FileUtils.getFileSha1(path), sha1);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public static interface CheckLibCallback {
+        public void onStart();
+
+        public void onFinish(Exception var1);
+    }
+}
+

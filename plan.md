@@ -17,14 +17,16 @@
 
 ## Phase 1 · 脚手架：搬 QCL 码 + 开发环境
 
-**目标**：得到"可构建、可安装、可跑远古版本、日志链完整"的 Seashore 骨架，行为等价 QCL 1.5.7 现状。
+**目标**：得到"可构建、可安装、可跑远古版本、日志链完整"的 Seashore 骨架，行为等价 QCL 1.5.9 现状（2026-11-01 上游同步，判读见卷宗 §36）。
 
-1. **基座落库**：以 `reference/Quanta-Craft-Launcher`（分支 1.5.7）为源，工程主体迁入 Seashore 仓；GPL-3.0 合规——保留版权头与 LICENSE，`reference/` 维持 gitignore 不入库。**GL4ES-Fix 表模块随移植保留**（§16 定调：Seashore 采映射表方案，表扩覆盖双家族=官方混淆+repak 名，应用时机改运行时翻 clinit，不再离线改 jar）。
-2. **品牌剥离**：包名/`applicationId`（`com.qcl.launcher` → Seashore 命名空间）、FileProvider authority、外置存储路径常量（`QCL/.minecraft` → `Seashore/.minecraft`）、名字与图标自建（banner 已有）；UI 布局沿用 FCL 血脉不重写。
-3. **开发环境**：Android Studio + gradle wrapper 锁版本；`abiFilters 'x86_64'` 零 NDK；AVD `emulator-5554` 为主力测试机（adb：`D:\Android\Sdk\platform-tools\adb.exe`）；调试日志路径对齐 Pojav log（`files/debug/pojav_latest_log.txt`）。
+1. **基座落库** ✅（2026-11-01）：以 `reference/Quanta-Craft-Launcher`（分支 1.5.9，`e49f4b3`；1.5.8/1.5.9 增量全为现代侧、远古面零触碰，§36）为源，工程主体迁入 Seashore 仓（6 模块 + tools/appletfix_src/third_party_sources，剔除 QCL 维护脚本/自更新清单/RELEASE_NOTES）；GPL-3.0 合规——保留版权头与 LICENSE，`reference/` 维持 gitignore 不入库。**GL4ES-Fix 表模块随移植保留**（§16 定调：Seashore 采映射表方案，表扩覆盖双家族=官方混淆+repak 名，应用时机改运行时翻 clinit，不再离线改 jar）。
+2. **品牌剥离** ✅（2026-11-01，图标除外）：包名整体迁移 `com.qcl.launcher` → `com.seashore.launcher`（目录移动 + 555 文件替换零残留）、applicationId/FileProvider authority/外置存储根（`/QCL` → `/Seashore`）/三语名称串/UpdateChecker 与 FeedbackUI 指向/版本线（0.1.0）全部就位；内部标识（`qcl.cfg` 文件名、`-Dqcl.*` 属性键、`QCLApplication` 类名、`Theme.QCL.*`）不动；图标仍为 QCL 资产待自建（banner 已有）；UI 布局沿用 FCL 血脉不重写。
+3. **开发环境** ✅（2026-11-01）：gradle wrapper 7.3.3 锁版本（distributionUrl 切腾讯镜像——services.gradle.org 直连超时实测）；JDK 17（Temurin 17.0.20.1，`e:\4k\tools\jdk17`——机器仅有 8/21/25，Gradle 7.3.3 上限 17）；build-tools 30.0.3 已从 dl.google 下架（404 实锤），改装 34.0.0 并给 6 模块钉 `buildToolsVersion`；`local.properties` 指 `D:\Android\Sdk`；ABI 走基座自带 `-Darch=x86_64`（abiFilters + assets 按架构裁剪一体）；AVD `emulator-5554` 主力测试机；调试日志路径对齐 Pojav log（`files/debug/pojav_latest_log.txt`）。**零 NDK 假设修正**：`PojavLauncher` 模块有无条件 `externalNativeBuild`（Android.mk，声明 r27c=27.3.13750724），构建机必须有 NDK——本机装的是 r30（xhook 的 `PAGE_SIZE/PAGE_MASK` 被新 Bionic 移除，**实测不兼容**）与 r27c（镜像 zip 名 r27c 实 revision=27.2.12479018），故 `PojavLauncher/build.gradle` 加 `-DndkVer` 覆盖口（默认值=上游，cherry-pick 零冲突），构建命令传 `'-DndkVer=27.2.12479018'`（PS5 含点参数须引号——裸参按点切分实锤）。**构建通过（2026-11-02）**：`Seashore-debug-0.1.0-x86_64.apk` 218MB，badging 验 `package=com.seashore.launcher / versionCode 1 / native-code x86_64` ✓。
 4. **修复件挂载验证**：骨架上以 `-javaagent:legacyfix` + 预设（`lf.iconnoop` / `lf.deawt.disable` / `lf.assetsDir`）跑 b1.7.3 与 inf-20100618——直连路径天然生效（无 LW）；阴影三角主路径走 Seashore 自家映射表（步骤 1），`lf.gl4esquad` 仅作兜底顺带验证真机命中（§16 顺延账；离线唯一性取证已闭环：两包全类扫描各恰好命中 1）。
 
 **验收**：全新 clone → 一条命令构建安装 → 启动 b1.7.3 阴影三角消失、0618 可进游戏；升级/替换 jar 与 cfg 的路径文档化。
+
+**迁移挂账（2026-11-01 落库轮记）**：① `ResConfHack.jar` 需按 `tools/cacio_patch/README.md` ASM 流程重建——补丁类 L335 硬编码 `LevelFileChooserActivity` 旧包名，改名后 indev/infdev 存读档的内置文件浏览器回落系统选择器（catch 分支 fail-open，良性但需补）；② 图标/启动页仍 QCL 资产；③ `assets/announcement.json` 仍是 QCL 公告内容（展示面待换）；④ donate UI 指向未动；⑤ release 签名缺 `qcl.keystore`（Seashore 自建 keystore 随发版轮）；⑥ `ModLoaderVersions` 的加载器元数据端点暂借 QCL 仓（数据通道非品牌，Phase 2 复核）。
 
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 

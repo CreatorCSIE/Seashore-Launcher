@@ -1,0 +1,937 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  android.annotation.SuppressLint
+ *  android.app.Activity
+ *  android.content.Context
+ *  android.content.Intent
+ *  android.content.SharedPreferences
+ *  android.content.SharedPreferences$Editor
+ *  android.content.res.Configuration
+ *  android.graphics.Color
+ *  android.os.Build$VERSION
+ *  android.os.Bundle
+ *  android.os.Handler
+ *  android.os.Message
+ *  android.view.View
+ *  android.view.View$OnClickListener
+ *  android.widget.ImageButton
+ *  android.widget.LinearLayout
+ *  android.widget.RelativeLayout
+ *  android.widget.TextView
+ *  androidx.annotation.NonNull
+ *  androidx.appcompat.app.AppCompatActivity
+ *  com.afollestad.appthemeengine.ATE
+ *  com.afollestad.appthemeengine.Config
+ */
+package com.seashore.launcher.launcher;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import com.afollestad.appthemeengine.ATE;
+import com.afollestad.appthemeengine.Config;
+import com.seashore.launcher.launcher.VerifyInterface;
+import com.seashore.launcher.launcher.dialogs.VerifyDialog;
+import com.seashore.launcher.launcher.dialogs.account.MicrosoftAccountSkinDialog;
+// ★ 1.4.1：皮肤库（自研）
+import com.seashore.launcher.launcher.dialogs.account.SkinLibraryDialog;
+import com.seashore.launcher.launcher.dialogs.account.SkinPreviewDialog;
+import com.seashore.launcher.launcher.setting.InitializeSetting;
+import com.seashore.launcher.launcher.setting.game.PrivateGameSetting;
+import com.seashore.launcher.launcher.setting.game.PublicGameSetting;
+import com.seashore.launcher.launcher.setting.launcher.LauncherSetting;
+import com.seashore.launcher.launcher.uis.game.download.DownloadUrlSource;
+import com.seashore.launcher.launcher.uis.main.DynamicBackground;
+import com.seashore.launcher.launcher.uis.tools.UIManager;
+import com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI;
+import com.seashore.launcher.manifest.AppManifest;
+import com.seashore.launcher.update.UpdateChecker;
+import com.seashore.launcher.utils.LocaleUtils;
+
+import com.seashore.launcher.R;
+public class MainActivity
+extends AppCompatActivity
+implements View.OnClickListener {
+    public LinearLayout launcherLayout;
+    public boolean isLoaded = false;
+    public boolean dialogMode = false;
+    /**
+     * ★★★★★ 2026-10-16：最近一次已生效的「夜间模式位」（{@code Configuration.UI_MODE_NIGHT_MASK}）。
+     *
+     * <p>用途：系统切深色/浅色时，{@code onConfigurationChanged} 会对比它来决定是否
+     * {@code recreate()}，让 {@code values-night/colors.xml} 重新解析
+     * —— 修「切到夜间模式后必须手动重启启动器配色才同步」。
+     * 重建后会在 onCreate 里重新赋值，避免无限重建。
+     */
+    public int lastAppliedUiMode = -1;
+    public LauncherSetting launcherSetting;
+    public PublicGameSetting publicGameSetting;
+    public PrivateGameSetting privateGameSetting;
+    public UpdateChecker updateChecker;
+    public LinearLayout backBar;
+    public ImageButton backToLastUI;
+    public TextView currentUIText;
+    public ImageButton backToHome;
+    public ImageButton closeCurrentUI;
+    public RelativeLayout uiContainer;
+    public UIManager uiManager;
+    public Config exteriorConfig;
+    @SuppressLint(value={"HandlerLeak"})
+    public final Handler loadingHandler = new Handler(){
+
+        public void handleMessage(@NonNull Message msg) {
+            super.handleMessage(msg);
+            if (msg.what == 0 && !MainActivity.this.isLoaded) {
+                MainActivity.this.exteriorConfig = ATE.config((Context)MainActivity.this, null);
+                MainActivity.this.backBar = (LinearLayout)MainActivity.this.findViewById(R.id.qcl_back_bar);
+                MainActivity.this.backToLastUI = (ImageButton)MainActivity.this.findViewById(R.id.back_to_last_ui);
+                MainActivity.this.currentUIText = (TextView)MainActivity.this.findViewById(R.id.text_current_ui);
+                MainActivity.this.backToHome = (ImageButton)MainActivity.this.findViewById(R.id.back_to_home);
+                MainActivity.this.closeCurrentUI = (ImageButton)MainActivity.this.findViewById(R.id.close_current_ui);
+                if (MainActivity.this.backToLastUI != null) {
+                    MainActivity.this.backToLastUI.setOnClickListener((View.OnClickListener)MainActivity.this);
+                }
+                if (MainActivity.this.backToHome != null) {
+                    MainActivity.this.backToHome.setOnClickListener((View.OnClickListener)MainActivity.this);
+                }
+                if (MainActivity.this.closeCurrentUI != null) {
+                    MainActivity.this.closeCurrentUI.setOnClickListener((View.OnClickListener)MainActivity.this);
+                }
+                MainActivity.this.uiContainer = (RelativeLayout)MainActivity.this.findViewById(R.id.main_ui_container);
+                // ★★★ 1.5.0：按设置把「旧排版 / 新排版」inflate 进 main_ui_host。
+                //   必须在 new UIManager(...) **之前** —— 那个构造里会对全部页面调 onCreate()，
+                //   每个都在 findViewById 找控件；布局还没进去的话全都拿到 null。
+                MainActivity.this.inflateMainUi();
+                MainActivity.this.uiManager = new UIManager((Context)MainActivity.this, MainActivity.this);
+                MainActivity.this.exteriorConfig.primaryColor(ExteriorSettingUI.parseThemeColorSafe((Context)MainActivity.this, MainActivity.this.launcherSetting.launcherTheme));
+                MainActivity.this.exteriorConfig.accentColor(ExteriorSettingUI.parseThemeColorSafe((Context)MainActivity.this, MainActivity.this.launcherSetting.launcherTheme));
+                MainActivity.this.exteriorConfig.apply((Activity)MainActivity.this);
+                MainActivity.this.isLoaded = true;
+                MainActivity.this.onLoad();
+                ExteriorSettingUI.applyPanelTint((Context)MainActivity.this, MainActivity.this.getWindow().getDecorView(), ExteriorSettingUI.getPanelColor((Context)MainActivity.this, MainActivity.this.launcherSetting.panelColor));
+                // ★★★★★ 1.5.2 修「**必须点进外观页**才会把主题色涂到界面上，否则一直是白的」。
+                //
+                //   ★ 根因：上面 L125~127 只调了 exteriorConfig.apply() —— 那**只改主题定义**，
+                //     已经 inflate 出来的 View 不会重读主题（左栏背景是固定 color 资源，
+                //     按钮 drawable 引用的 ?attr/colorAccent 同理）。
+                //     而 onResume 里那次 ThemeRefreshUtils.apply 又发生在 isLoaded == false 时
+                //     （初始化是异步的，那时 UI 都还没 inflate）⇒ 等于没做。
+                //     于是只有"进一次外观页"才会触发刷新 —— 正是用户描述的现象。
+                //
+                //   ⇒ 在**初始化完成之后**这里补一次真正给 View 上色的调用。
+                try {
+                    int bootThemeColor = ExteriorSettingUI.parseThemeColorSafe(
+                            (Context) MainActivity.this,
+                            MainActivity.this.launcherSetting.launcherTheme);
+                    com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(
+                            MainActivity.this, bootThemeColor);
+                } catch (Throwable ignored) {
+                }
+                MainActivity.this.startDynamicBackgroundIfNeeded();
+                // ★ 1.3.0：**初始化完成后**扫一遍已装的远古版本，没打中文包的补上。
+                //   为什么放这儿：onResume 时 isLoaded 还是 false（初始化是异步的），
+                //   在那儿挂钩子根本进不去 —— 早就装好的版本就一直没被补上。
+                try {
+                    final String gameDir = MainActivity.this.launcherSetting == null
+                            ? null : MainActivity.this.launcherSetting.gameFileDirectory;
+                    if (gameDir != null) {
+                        new Thread(() -> {
+                            try {
+                                com.seashore.launcher.launcher.download.game.LegacyChinesePack.sweepAll(MainActivity.this, gameDir);
+                            }
+                            catch (Throwable ignored) {
+                            }
+                        }).start();
+                    }
+                }
+                catch (Throwable ignored) {
+                }
+                // ★ 1.5.0：这里原来是 MainActivity.this.applyUiTheme();（草方块主题引擎）。
+                //   草方块 UI 已彻底删除，整个 QclThemeUtils 也没了 → 不再需要调用。
+                //   缺省主题的收尾工作现在由 customTheme() / exteriorConfig 负责。
+            }
+        }
+    };
+    private DynamicBackground dynamicBackground;
+
+    // ★★★ 1.1.0：原 `libsecurity.so`（防篡改校验库，随已删除的 Boat 模块一起没了）曾提供
+    //   下面这些 native 方法。这里改成等价的**纯 Java 实现**，彻底摘掉对它的依赖。
+    @Override
+    protected void onCreate(Bundle bundle) {
+        // ★★★★★ 2026-10-16：记下「本次创建时生效的夜间模式位」。
+        //   onConfigurationChanged 只在**真的变化**时才 recreate()，
+        //   重建后这里会重新记录新值 ⇒ 不会无限重建。
+        try {
+            this.lastAppliedUiMode = getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        } catch (Throwable ignored) {
+            this.lastAppliedUiMode = -1;
+        }
+        // ★★★★★ 2026-10-09（用户：「随时间变化的壁纸不准确，下午了还是晚上的壁纸」
+        //   +「主题色也全部改一下」）：把**配色主题**也按现实时间钉住。
+        //   必须在 setContentView 之前设，否则 values-night 会先按系统深色模式加载一遍。
+        //
+        //   ★★ 但**不能只信本地时钟**：实测 MuMu 上设备时钟整整慢 8 小时（epoch 差 28927s），
+        //   本地时钟会把晚上 8 点判成中午 12 点。所以：
+        //     ① 先异步取网络时间（后台线程，不阻塞启动、也不会 NetworkOnMainThread）
+        //     ② 拿到了就按它定色，没拿到才退回本地时钟
+        //   （取回后若判定与初值不同，DynamicBackground.applyAutoDayNight 会再校正一次。）
+        try {
+            com.seashore.launcher.launcher.uis.main.DynamicBackground.refreshHourAsync(null);
+            com.seashore.launcher.launcher.uis.main.DynamicBackground.applyRealTimeNightMode(this);
+        } catch (Throwable ignoreTheme) {
+            // 设不了就按系统来，不能因此崩
+        }
+        super.onCreate(bundle);
+        // ★★★★★ 2026-10-11（用户实测「下载页里的模组一个中文也没有，只有一堆英文原名」）：
+        //   在这里**显式**把 Context 交给翻译表并主动预热。
+        //   原来只靠 AppGlobals 反射拿 Application 去读 assets，
+        //   一旦它当时还没准备好就会加载失败，而且**失败结果会被缓存成空表**
+        //   ⇒ 之后永远查不到中文（表现就是"一个中文也没有"）。
+        //   从 Activity 拿 Context 最可靠。（preload 内部开后台线程解析，不占主线程。）
+        try {
+            com.seashore.launcher.utils.string.ModTranslations.preload(this);
+        } catch (Throwable ignoreI18n) {
+            // 翻译表加载失败绝不影响启动
+        }
+        this.setContentView(R.layout.activity_main);
+        this.launcherLayout = (LinearLayout)this.findViewById(R.id.launcher_layout);
+        this.init();
+    }
+
+    public boolean isValid(String str) {
+        return true;
+    }
+
+    public static void verify() {
+    }
+
+    public static void verifyFunc() {
+    }
+
+    public void launch(Intent intent) {
+        this.startActivity(intent);
+    }
+
+    public void init() {
+        if (Build.VERSION.SDK_INT >= 28) {
+            this.getWindow().getAttributes().layoutInDisplayCutoutMode = this.getIntent().getExtras().getBoolean("fullscreen") ? 1 : 2;
+        }
+        this.getWindow().setFlags(256, 256);
+        new Thread(() -> {
+            AppManifest.initializeManifest((Context)this);
+            this.launcherSetting = InitializeSetting.initializeLauncherSetting();
+            this.publicGameSetting = InitializeSetting.initializePublicGameSetting((Context)this, this);
+            this.privateGameSetting = InitializeSetting.initializePrivateGameSetting((Context)this);
+            this.runOnUiThread(() -> {
+                // ★ 1.5.0：把 MainActivity 注册给启动前预检（LaunchPreflightChecks），
+                //   好让它能读到**全局**隔离设置（用户在「通用游戏设置」里开的那个）。
+                //   ★ 必须在 privateGameSetting 初始化**之后**注册，否则读到的是空对象。
+                try {
+                    com.seashore.launcher.launcher.launch.check.LaunchPreflightChecks
+                            .setGlobalSettingProvider((Context) this);
+                } catch (Throwable ignored) {
+                }
+                this.updateChecker = new UpdateChecker((Context)this, this);
+                this.updateChecker.checkAuto();
+            });
+            DownloadUrlSource.getBalancedSource((Context)this);
+            this.loadingHandler.sendEmptyMessage(0);
+        }).start();
+    }
+
+    private void startDynamicBackgroundIfNeeded() {
+        try {
+            int type = this.launcherSetting.launcherBackground.type;
+            // ★ 1.5.0：默认（type 1）= 按现实时间自动切昼夜。布局根默认背景是黑夜图，
+            //   白天时段必须换成白天图。放在这里因为它是「启动时决定背景」的唯一入口。
+            if (type == 1) {
+                DynamicBackground.applyAutoDayNight(this, this.launcherLayout);
+                if (this.dynamicBackground != null) {
+                    this.dynamicBackground.stop();
+                }
+                return;
+            }
+            if (type != 0) {
+                return;
+            }
+            if (this.dynamicBackground == null) {
+                this.dynamicBackground = new DynamicBackground((Activity)this, (View)this.launcherLayout);
+            }
+            this.dynamicBackground.start();
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+    }
+
+    /** ★ 1.2.9：回到前台后确保动态背景继续轮播（只在「动态背景」模式下生效） */
+    public void resumeDynamicBackground() {
+        try {
+            if (this.launcherSetting == null || this.launcherSetting.launcherBackground == null) {
+                return;
+            }
+            int type = this.launcherSetting.launcherBackground.type;
+            // ★ 1.5.0：默认（type 1）→ 回到前台时按当前时间重新判定昼夜
+            //   （挂了很久再回来，白天/黑夜该换就换）
+            if (type == 1) {
+                DynamicBackground.applyAutoDayNight(this, this.launcherLayout);
+                return;
+            }
+            if (type != 0) {
+                return;
+            }
+            if (this.dynamicBackground == null) {
+                this.startDynamicBackgroundIfNeeded();
+                return;
+            }
+            this.dynamicBackground.ensureRunning();
+        }
+        catch (Throwable ignored) {
+        }
+    }
+
+    public void refreshDynamicBackground() {
+        try {
+            int type = this.launcherSetting.launcherBackground.type;
+            if (type == 1) {
+                // ★ 1.5.0：默认 → 立刻按当前时间切昼夜（设置页点「默认」马上生效）
+                DynamicBackground.applyAutoDayNight(this, this.launcherLayout);
+                if (this.dynamicBackground != null) {
+                    this.dynamicBackground.stop();
+                }
+            } else if (type == 0) {
+                // ★ 1.5.2：先看「网络」模式有没有填自定义 URL。
+                //   填了 → 后台下载解码后交给轮播引擎；没填/失败 → 内置 6 张。
+                //   ★ 只影响背景怎么画，不碰任何启动/跳转流程。
+                loadCustomBackgroundFramesIfAny();
+                this.startDynamicBackgroundIfNeeded();
+            } else if (this.dynamicBackground != null) {
+                this.dynamicBackground.stop();
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+    }
+
+    /**
+     * ★ 1.5.2 新增：把「网络」模式里玩家填的 URL 下载成本地 Drawable 交给轮播引擎。
+     *
+     * <p>支持**多行 / 逗号 / 分号**分隔的多个 URL（可让它轮流放几张自己的图）。
+     * <p>全部在后台线程下载解码；某张失败就跳过；一张都没成功则降级为内置 6 张。
+     * <p>★ 本方法**只改背景数据**，不触碰启动检查、Activity 跳转等任何流程。
+     */
+    private void loadCustomBackgroundFramesIfAny() {
+        final String raw = this.launcherSetting.launcherBackground.url;
+        final String text = raw == null ? "" : raw.trim();
+        if (text.isEmpty()) {
+            com.seashore.launcher.launcher.uis.main.DynamicBackground.setCustomFrames(null);
+            return;
+        }
+        final java.util.List<String> urls = new java.util.ArrayList<>();
+        for (String part : text.split("[\\r\\n,;，；]+")) {
+            String u = part.trim();
+            if (!u.isEmpty() && (u.startsWith("http://") || u.startsWith("https://"))) {
+                urls.add(u);
+            }
+        }
+        if (urls.isEmpty()) {
+            com.seashore.launcher.launcher.uis.main.DynamicBackground.setCustomFrames(null);
+            return;
+        }
+        new Thread(() -> {
+            final java.util.List<android.graphics.drawable.Drawable> frames =
+                    new java.util.ArrayList<>();
+            for (String u : urls) {
+                try {
+                    java.io.InputStream in = com.seashore.launcher.utils.io.NetworkUtils
+                            .toURL(u).openStream();
+                    android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(in);
+                    try {
+                        in.close();
+                    } catch (Throwable ignored) {
+                    }
+                    if (bmp != null) {
+                        frames.add(new android.graphics.drawable.BitmapDrawable(
+                                getResources(), bmp));
+                    }
+                } catch (Throwable ignored) {
+                    // 单张失败不影响其它
+                }
+            }
+            final boolean ok = !frames.isEmpty();
+            runOnUiThread(() -> {
+                try {
+                    com.seashore.launcher.launcher.uis.main.DynamicBackground
+                            .setCustomFrames(ok ? frames : null);
+                    // 已经跑着的轮播要重启一次才会用上新图源
+                    if (this.dynamicBackground != null) {
+                        this.dynamicBackground.stop();
+                        this.dynamicBackground.start();
+                    }
+                } catch (Throwable ignored) {
+                }
+            });
+        }, "qcl-custom-bg").start();
+    }
+
+    /**
+     * ★★★ 1.5.0：把「旧排版 / 新排版」里选中的那一套 inflate 进 {@code main_ui_host}。
+     *
+     * <p>为什么不像别的页面那样用 {@code <include>}：
+     * <ul>
+     *   <li>{@code <include>} 是**编译期固定**的，没法按设置二选一；</li>
+     *   <li>两套布局（{@code ui_main.xml} / {@code ui_main_new.xml}）的 **id 集合完全相同**
+     *       （27 个），若同时挂进视图树，{@code findViewById} 只会返回第一个匹配 →
+     *       点的是新排版、动的是旧排版（串页）。</li>
+     * </ul>
+     * 所以改成运行时只 inflate 一套，同一时刻树里只有一套，天然无重复 id。
+     *
+     * <p>★ 兜底很重要：新排版万一 inflate 失败（资源缺失 / 语法问题），
+     * 必须**自动退回旧排版** —— 否则启动器直接白屏，而「设置 → 外观」也进不去，
+     * 玩家连切回来都做不到，等于变砖。
+     */
+    public void inflateMainUi() {
+        try {
+            View host = this.findViewById(R.id.main_ui_host);
+            if (!(host instanceof ViewGroup)) return;
+            ViewGroup group = (ViewGroup) host;
+            if (group.getChildCount() > 0) return;   // 幂等：别重复 inflate
+            boolean useNew = this.launcherSetting == null || this.launcherSetting.useNewLayout();
+            LayoutInflater.from(this).inflate(useNew ? R.layout.ui_main_new : R.layout.ui_main, group, true);
+            // ★★★ 1.5.0：新排版专属 —— 把「左侧常驻导航条」「右侧常驻栏」inflate 到
+            //   activity_main 顶层的两个 host 里（照 FCL 的 left_menu / right_menu）。
+            //   ★ 旧排版**完全不进这个分支**，两个 host 保持 GONE —— 旧排版行为零变化。
+            //   ★ 为什么不在 ui_main_new.xml 里：那个布局随主界面被 onStop 一起隐藏，
+            //     放进去的话切到版本列表/下载页时左右栏就没了，就不是"常驻"了。
+            if (useNew) {
+                inflateNewLayoutChrome();
+            }
+        } catch (Throwable t) {
+            try {
+                ViewGroup group = (ViewGroup) this.findViewById(R.id.main_ui_host);
+                if (group != null && group.getChildCount() == 0) {
+                    LayoutInflater.from(this).inflate(R.layout.ui_main, group, true);
+                }
+            } catch (Throwable ignored) {
+                // 连旧排版都 inflate 不了就真没救了，交给上层按空界面处理。
+            }
+        }
+    }
+
+    /**
+     * ★★★ 1.5.0 新排版专属：把左右两栏（左侧纯图标导航条 + 右侧账号/版本/启动栏）
+     * inflate 到 activity_main 顶层，让它们**跨页面常驻**（照 FCL 的 left_menu / right_menu）。
+     *
+     * <p>★ 只在 {@code useNewLayout()} 为真时调用；旧排版绝不会进这里。
+     * <p>★ 幂等：host 里已经有子 View 就跳过，避免 Activity 重建时叠两份
+     * （叠两份 → 同名 id 重复 → findViewById 只抓第一个 → 点一套动另一套）。
+     * <p>★ 任何失败都只 printStackTrace：宁可没有常驻栏，也不能让启动器起不来。
+     */
+    private void inflateNewLayoutChrome() {
+        try {
+            View leftHost = this.findViewById(R.id.new_left_nav_host);
+            if (leftHost instanceof ViewGroup && ((ViewGroup) leftHost).getChildCount() == 0) {
+                LayoutInflater.from(this).inflate(R.layout.ui_main_new_left, (ViewGroup) leftHost, true);
+                leftHost.setVisibility(View.VISIBLE);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        try {
+            View rightHost = this.findViewById(R.id.new_right_panel_host);
+            if (rightHost instanceof ViewGroup && ((ViewGroup) rightHost).getChildCount() == 0) {
+                LayoutInflater.from(this).inflate(R.layout.ui_main_new_right, (ViewGroup) rightHost, true);
+                rightHost.setVisibility(View.VISIBLE);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        // ★★★ 关键：左右两栏是**浮在最上层**的，而二级页面（版本列表/下载/设置…）
+        //   都是 match_parent 全屏铺满 —— 不加避让的话内容会被两栏压住。
+        //   做法：等两栏量好尺寸后，把 content 容器（main_ui_container）加上等宽的左右内边距，
+        //   所有二级页面就自动被"夹"在中间（这正是 FCL 的 ViewPager 效果）。
+        applyChromeInsets();
+    }
+
+    /**
+     * ★ 1.5.0：按左右常驻栏的实际宽度，给内容容器加左右内边距（照 FCL 三段式布局）。
+     * <p>★ 必须 post 到下一帧再量 —— inflate 完这一帧两栏宽度还是 0，直接量会得到 0 padding。
+     * <p>★ 只在内容容器上做一次；重复调用只更新数值，不会累加。
+     */
+    private void applyChromeInsets() {
+        final View content = this.findViewById(R.id.main_ui_container);
+        final View leftHost = this.findViewById(R.id.new_left_nav_host);
+        final View rightHost = this.findViewById(R.id.new_right_panel_host);
+        if (content == null || leftHost == null || rightHost == null) {
+            return;
+        }
+        content.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int l = leftHost.getVisibility() == View.VISIBLE ? leftHost.getWidth() : 0;
+                    int r = rightHost.getVisibility() == View.VISIBLE ? rightHost.getWidth() : 0;
+                    content.setPadding(l, 0, r, 0);
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        });
+    }
+
+    /*
+     * ★★★ 1.5.0：**草方块 UI 已彻底删除**（那套主题一堆 bug，用户要求移除）。
+     *
+     * 原来这里是 applyUiTheme() → QclThemeUtils.apply(activity, uiTheme)，
+     * 由 QclThemeUtils 递归遍历整棵视图树，按「面板角色」把背景换成草方块贴图、
+     * 把文字染成草方块配色；传别的值则从 view tag 里取回原值做**还原**。
+     *
+     * 现在开关、字段（launcherSetting.uiTheme）、整套 QclThemeUtils
+     * 以及 qcl_grass_* 那 9 个 drawable 全部删掉了 —— 没有任何代码再改这些背景，
+     * 自然也不需要「还原」，所以这个方法整个移除。
+     * 视图背景就由布局文件本身说了算，干净可控。
+     */
+
+    protected void onDestroy() {
+        if (this.dynamicBackground != null) {
+            this.dynamicBackground.stop();
+        }
+        super.onDestroy();
+    }
+
+    public void onLoad() {
+        this.uiManager.gameManagerUI.gameManagerUIManager.versionSettingUI.onLoaded();
+        this.uiManager.downloadUI.downloadUIManager.downloadMinecraftUI.onLoaded();
+        this.uiManager.settingUI.settingUIManager.universalGameSettingUI.onLoaded();
+        this.uiManager.mainUI.customTheme();
+    }
+
+    public void showBarTitle(String title, boolean home, boolean close) {
+        // ★★★ 1.5.0：**新排版下不使用右上角悬浮返回栏**（用户要求）——
+        //   新版排左侧导航条最底部有常驻的「返回上一层」按钮（照 FCL 的 back），
+        //   功能与这个悬浮栏重复，两个都显示会挤在右上角、还压住二级页面顶排按钮。
+        //   判据：新排版专属的右栏 host 已 inflate 出来（visible）→ 直接不点亮。
+        //   ★ 这一处改动覆盖全部 20+ 二级页面，不用逐个改它们的 onStart()。
+        //   ★ 旧排版完全不进这个分支，返回栏行为与 1.4.9 一模一样。
+        try {
+            View chromeHost = this.findViewById(R.id.new_left_nav_host);
+            if (chromeHost != null && chromeHost.getVisibility() == View.VISIBLE) {
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (this.currentUIText != null) {
+                if (title != null && !title.isEmpty()) {
+                    this.currentUIText.setText((CharSequence)title);
+                    this.currentUIText.setVisibility(0);
+                } else {
+                    this.currentUIText.setVisibility(8);
+                }
+            }
+            if (this.backToLastUI != null) {
+                this.backToLastUI.setVisibility(0);
+            }
+            if (this.backToHome != null) {
+                this.backToHome.setVisibility(home ? 0 : 8);
+            }
+            if (this.closeCurrentUI != null) {
+                this.closeCurrentUI.setVisibility(close ? 0 : 8);
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        this.showBackBar();
+    }
+
+    public void showBackBar() {
+        // ★★★ 1.5.0：新排版下**整个右上角悬浮返回栏都不显示**（用户要求）。
+        //   有些二级页面不走 showBarTitle()、而是直接调这里的 showBackBar()，
+        //   所以这道闸门必须也加在这里，否则「返回栏被压回去」只在部分页面生效。
+        try {
+            View chromeHost = this.findViewById(R.id.new_left_nav_host);
+            if (chromeHost != null && chromeHost.getVisibility() == View.VISIBLE) {
+                if (this.backBar != null) {
+                    this.backBar.setVisibility(View.GONE);
+                }
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (this.backBar == null) {
+                this.backBar = (LinearLayout)this.findViewById(R.id.qcl_back_bar);
+            }
+            if (this.backBar == null) {
+                return;
+            }
+            if (this.backBar.getVisibility() != 0) {
+                this.backBar.setVisibility(0);
+            }
+            this.backBar.bringToFront();
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+    }
+
+    public void hideBarTitle() {
+        try {
+            if (this.backBar == null) {
+                this.backBar = (LinearLayout)this.findViewById(R.id.qcl_back_bar);
+            }
+            if (this.backBar == null) {
+                return;
+            }
+            this.backBar.setVisibility(8);
+            if (this.currentUIText != null) {
+                this.currentUIText.setText((CharSequence)"");
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+    }
+
+    public void backToLastUI() {
+        if (this.isLoaded) {
+            if (this.uiManager.currentUI == this.uiManager.mainUI) {
+                // ★★★ 1.5.0 修复（用户对照 FCL 后指出"返回按钮逻辑不准确"）：
+                //   **已经在主界面就什么都不做**，绝不退出启动器。
+                //
+                //   FCL 的链路：返回按钮 → uiManager.onBackPressed() → currentUI.onBackPressed()，
+                //   而 FCLBaseUI.onBackPressed() 在 defaultBackEvent 为空时是**空实现**
+                //   ⇒ FCL 在主界面上点返回是**没有动作**的。
+                //
+                //   原来这里调 backToDeskTop()：左栏返回按钮是**常驻**的，主界面上它也在那儿，
+                //   点一下就把整个启动器退到桌面（用户原话"不能整这样的逻辑"）。
+                //   ★ 系统返回键（onBackPressed → backToLastUI）同样不再退出主界面。
+                return;
+            }
+            this.uiManager.uis.get(this.uiManager.uis.size() - 1).onStop();
+            this.uiManager.uis.remove(this.uiManager.uis.size() - 1);
+            this.uiManager.currentUI = this.uiManager.uis.get(this.uiManager.uis.size() - 1);
+            this.uiManager.uis.get(this.uiManager.uis.size() - 1).onStart();
+        }
+    }
+
+    public void backToHome() {
+        this.uiManager.switchMainUI(this.uiManager.mainUI);
+        this.uiManager.uis.clear();
+        this.uiManager.uis.add(this.uiManager.mainUI);
+    }
+
+    public void closeCurrentUI() {
+        this.uiManager.removeUIIfExist(this.uiManager.exportWorldUI);
+        this.uiManager.removeUIIfExist(this.uiManager.installPackageUI);
+        this.uiManager.removeUIIfExist(this.uiManager.exportPackageTypeUI);
+        this.uiManager.removeUIIfExist(this.uiManager.exportPackageInfoUI);
+        this.uiManager.removeUIIfExist(this.uiManager.exportPackageFileUI);
+        this.uiManager.removeUIIfExist(this.uiManager.installGameUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadForgeUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadFabricUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadFabricAPIUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadLiteLoaderUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadOptifineUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadQuiltUI);
+        this.uiManager.removeUIIfExist(this.uiManager.downloadQuiltAPIUI);
+        // ★★★★★ 2026-10-16 **修「closeCurrentUI 在空栈时崩溃 / 页面变空白」**。
+        //
+        //   老代码这里直接 `uis.get(uis.size() - 1)`：
+        //     · 栈为空时抛 IndexOutOfBoundsException ⇒ 本次收尾流程整个中断，
+        //       下面的 onStop 一串全不执行 ⇒ 被移除的页面视图**不隐藏**，
+        //       一直压在目标页上 ⇒ 用户看到的就是**空白 / 滚木**；
+        //     · 而且一旦崩在中间，currentUI 与实际可见视图就永久错位。
+        //   ⇒ 加空栈保护（空栈时退回主界面），保证后面的收尾逻辑一定跑得到。
+        if (!this.uiManager.uis.isEmpty()) {
+            this.uiManager.uis.get(this.uiManager.uis.size() - 1).onStart();
+        } else if (this.uiManager.mainUI != null) {
+            this.uiManager.mainUI.onStart();
+        }
+        if (this.uiManager.currentUI == this.uiManager.exportWorldUI) {
+            this.uiManager.exportWorldUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.installPackageUI) {
+            this.uiManager.installPackageUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.exportPackageTypeUI) {
+            this.uiManager.exportPackageTypeUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.exportPackageInfoUI) {
+            this.uiManager.exportPackageInfoUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.exportPackageFileUI) {
+            this.uiManager.exportPackageFileUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.installGameUI) {
+            this.uiManager.installGameUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadForgeUI) {
+            this.uiManager.downloadForgeUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadFabricUI) {
+            this.uiManager.downloadFabricUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadFabricAPIUI) {
+            this.uiManager.downloadFabricAPIUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadLiteLoaderUI) {
+            this.uiManager.downloadLiteLoaderUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadOptifineUI) {
+            this.uiManager.downloadOptifineUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadQuiltUI) {
+            this.uiManager.downloadQuiltUI.onStop();
+        }
+        if (this.uiManager.currentUI == this.uiManager.downloadQuiltAPIUI) {
+            this.uiManager.downloadQuiltAPIUI.onStop();
+        }
+        this.uiManager.currentUI = this.uiManager.uis.get(this.uiManager.uis.size() - 1);
+    }
+
+    public void backToDeskTop() {
+        Intent i = new Intent("android.intent.action.MAIN");
+        i.setFlags(0x10000000);
+        i.addCategory("android.intent.category.HOME");
+        this.startActivity(i);
+    }
+
+    public void onBackPressed() {
+        if (!this.dialogMode) {
+            this.backToLastUI();
+        }
+    }
+
+    /** ★ 1.5.2：选 jar 用的请求码（与 JarLauncherUI / onActivityResult 保持一致）。 */
+    public static final int REQUEST_PICK_JAR = 0x4A4152;   // "JAR"
+
+    /**
+     * ★ 1.5.2 新增：打开文件选择器，让玩家选一个 .jar。
+     *
+     * <p>由 {@code JarLauncherUI} 的「选择 JAR 文件并启动」按钮调用。
+     * 结果在 {@link #onActivityResult} 里处理（FileChooser 单选返回键名是 {@code "path"}）。
+     */
+    public void startPickJar() {
+        try {
+            Intent intent = new Intent(this, com.tungsten.filepicker.FileChooser.class);
+            intent.putExtra("SELECTION_MODE", 0);              // SINGLE_SELECTION
+            intent.putExtra("ALLOWED_FILE_EXTENSIONS", "jar");
+            intent.putExtra("INITIAL_DIRECTORY",
+                    android.os.Environment.getExternalStorageDirectory().getAbsolutePath());
+            startActivityForResult(intent, REQUEST_PICK_JAR);
+        } catch (Throwable t) {
+            android.widget.Toast.makeText(this,
+                    "打开文件选择器失败：" + t.getMessage(),
+                    android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (this.isLoaded) {
+            this.uiManager.onActivityResult(requestCode, resultCode, data);
+        }
+        if (SkinPreviewDialog.getInstance() != null) {
+            SkinPreviewDialog.getInstance().onActivityResult(requestCode, resultCode, data);
+        }
+        if (MicrosoftAccountSkinDialog.getInstance() != null) {
+            MicrosoftAccountSkinDialog.getInstance().onActivityResult(requestCode, resultCode, data);
+        }
+        // ★ 1.4.1：皮肤库（本地文件选择结果转发）
+        if (SkinLibraryDialog.getInstance() != null) {
+            SkinLibraryDialog.getInstance().onActivityResult(requestCode, resultCode, data);
+        }
+        // ★★★★★ 2026-10-17（1.5.2 新增）JAR 启动：文件选择结果 → 用独立进程跑那个 jar。
+        //   请求码与 MainUI.REQUEST_PICK_JAR 保持一致（0x4A4152 = "JAR"）。
+        if (requestCode == 0x4A4152 && resultCode == RESULT_OK && data != null) {
+            try {
+                // ★ FileChooser 单选的返回键名就是 "path"（见 FileChooser.java:196）
+                String path = data.getStringExtra("path");
+                if (path == null && data.getData() != null) {
+                    path = data.getData().getPath();
+                }
+                if (path != null && !path.isEmpty()) {
+                    com.seashore.launcher.launcher.JarLaunchActivity.launch(this, path);
+                } else {
+                    android.widget.Toast.makeText(this, "没有拿到 jar 路径",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+            } catch (Throwable t) {
+                android.widget.Toast.makeText(this, "启动 jar 失败：" + t.getMessage(),
+                        android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    public void onClick(View v) {
+        if (v == this.backToLastUI) {
+            this.backToLastUI();
+        } else if (v == this.backToHome) {
+            this.backToHome();
+        } else if (v == this.closeCurrentUI) {
+            this.closeCurrentUI();
+        }
+    }
+
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            this.getWindow().getDecorView().setSystemUiVisibility(5894);
+        }
+    }
+
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(LocaleUtils.setLanguage(base));
+    }
+
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        LocaleUtils.setLanguage((Context)this);
+        // ★★★★★ 2026-10-16 **修「切到夜间模式后必须重启启动器才会同步配色」**。
+        //
+        //   用户实测：「明明到了夜间模式，还必须要重启一下、重新进入启动器，
+        //   它才会自动同步，没有跟那些壁纸一样的 UI 颜色同步，需要修复」。
+        //
+        //   ★ 根因：`values-night/colors.xml` 是**资源限定符**，只在
+        //     「加载资源 / 重建 Activity」时才会被重新解析。
+        //     系统切深色模式时，若本 Activity 仍存活（配置变更没让它重建），
+        //     已经 inflate 好的视图**不会**重新读一次颜色 ⇒ 界面停在旧配色，
+        //     必须手动重启（= 重新 onCreate）才对。而壁纸是自己按现实时间重画的，
+        //     所以「壁纸变了、颜色没变」。
+        //
+        //   ⇒ 修法：在这里检测 **夜间模式位** 是否真的变了；
+        //     变了就 `recreate()` 一次，让所有视图重新走一遍资源解析
+        //     —— 效果等同于用户手动重启，但**自动完成**。
+        //
+        //   ★ 只在真的变了才重建（拿当前配置的 uiMode 位比对），
+        //     避免旋转屏幕 / 改字体大小等其它配置变更也触发重建。
+        try {
+            int newMode = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+            int curMode = getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK;
+            if (newMode != curMode) {
+                // ★ 记到字段里，供重建后再次比对，防止无限重建
+                this.lastAppliedUiMode = newMode;
+                recreate();
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (this.launcherSetting != null
+                    && this.launcherSetting.launcherBackground != null
+                    && this.launcherSetting.launcherBackground.type == 1) {
+                com.seashore.launcher.launcher.uis.main.DynamicBackground
+                        .applyAutoDayNight(this, this.launcherLayout);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    protected void onPause() {
+        super.onPause();
+        if (this.isLoaded) {
+            this.uiManager.onPause();
+        }
+        if (SkinPreviewDialog.getInstance() != null) {
+            SkinPreviewDialog.getInstance().onPause();
+        }
+    }
+
+    protected void onResume() {
+        super.onResume();
+        if (this.isLoaded) {
+            this.uiManager.onResume();
+            // ★ 1.2.9：回到前台时把动态背景的轮播重新挂上（切后台回来后不动的问题）
+            this.resumeDynamicBackground();
+
+        }
+        // ★★★★★ 2026-10-16 新增：**应用用户自定义的字体颜色**。
+        //   在这里（而不是各页面各自调用）做一次，所有子页面的正文文字就都会跟着变。
+        //   fontColor 为空 / "DEFAULT" 时 parse() 返回 0，apply() 直接不做任何事
+        //   ⇒ 完全等于旧行为（日间黑字、夜间白字），不会有回归。
+        try {
+            com.seashore.launcher.utils.ui.FontColorUtils.apply(this,
+                    com.seashore.launcher.utils.ui.FontColorUtils.parse(this.launcherSetting.fontColor));
+        } catch (Throwable ignored) {
+        }
+        // ★★★★★ 1.5.2：**让勾选框/开关/进度圈的强调色跟着「主题色」走**。
+        //
+        //   用户反馈：「还有一些勾选颜色的问题，还有一些颜色的问题都没有统一」。
+        //   根因：26 个 CheckBox 都没设 buttonTint，颜色全来自主题 colorAccent，
+        //   而 colorAccent 在 colors.xml 里写死 #556980 —— 玩家换主题色后勾选框不变。
+        //   ⇒ 这里在 onResume 用**当前主题色**重刷一遍（和上面的字体颜色同机制，可重复执行）。
+        try {
+            int themeColor = com.seashore.launcher.utils.QclColors.parseSafeTheme(
+                    this,
+                    com.seashore.launcher.launcher.uis.universal.setting.right.launcher
+                            .ExteriorSettingUI.getThemeColor(this, this.launcherSetting.launcherTheme),
+                    R.color.colorAccent);
+            com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(this, themeColor);
+        } catch (Throwable ignored) {
+        }
+        if (SkinPreviewDialog.getInstance() != null) {
+            SkinPreviewDialog.getInstance().onResume();
+        }
+    }
+
+    protected void onPostResume() {
+        super.onPostResume();
+        if (Build.VERSION.SDK_INT >= 28 && this.launcherSetting != null) {
+            this.getWindow().getAttributes().layoutInDisplayCutoutMode = this.launcherSetting.fullscreen ? 1 : 2;
+        }
+        this.getWindow().setFlags(256, 256);
+    }
+
+    public void startVerify() {
+        this.startVerify(new VerifyInterface(){
+
+            @Override
+            public void onSuccess() {
+            }
+
+            @Override
+            public void onCancel() {
+                MainActivity.this.finish();
+            }
+        });
+    }
+
+    public void startVerify(VerifyInterface verifyInterface) {
+        SharedPreferences msh = this.getSharedPreferences("Security", 0);
+        SharedPreferences.Editor mshe = msh.edit();
+        if (msh.getBoolean("verified", false) && this.isValid(msh.getString("code", null))) {
+            verifyInterface.onSuccess();
+            return;
+        }
+        VerifyDialog dialog = new VerifyDialog((Context)this, this, mshe, verifyInterface);
+        dialog.show();
+    }
+
+    static {
+    }
+}
+

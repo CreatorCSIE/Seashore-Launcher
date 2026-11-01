@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:paddingTop="30dp"
+    android:paddingLeft="20dp"
+    android:paddingRight="20dp"
+    android:paddingBottom="15dp"
+    android:background="@color/qcl_dialog_night_bg"
+    android:layout_width="500dp"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorPureBlack"
+        android:textSize="@dimen/text_size_big"
+        android:text="@string/dialog_add_microsoft_account_title"/>
+
+    <!-- ★★★ 1.5.0：移除「提示」蓝框（用户明确要求）。
+         原来是 launcher_view_blue 浅蓝块（"提示 / 您需要点击登录按钮…"），
+         浅蓝底 + 浅蓝字对比度太低、夜间也很突兀 ⇒ 整块删掉。
+         ★ 框内三个控件都**没有 id**（只有 text 引用 string），无任何 findViewById 依赖；
+           对应的 dialog_add_microsoft_account_hint / _hint_text 两条 string 也随之不再被引用。 -->
+
+    <LinearLayout
+        android:layout_marginTop="18dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_marginStart="7dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:background="@drawable/ic_baseline_jump_black"/>
+
+        <TextView
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColorLink="@color/colorLinkBlue"
+            android:id="@+id/setting_link"
+            android:text="@string/dialog_add_microsoft_account_setting"
+            android:layout_marginStart="7dp"
+            android:textSize="@dimen/text_size_middle"/>
+
+        <ImageView
+            android:layout_marginStart="7dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:background="@drawable/ic_baseline_jump_black"/>
+
+        <TextView
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColorLink="@color/colorLinkBlue"
+            android:id="@+id/help_link"
+            android:text="@string/dialog_add_microsoft_account_help"
+            android:layout_marginStart="7dp"
+            android:textSize="@dimen/text_size_middle"/>
+
+        <ImageView
+            android:layout_marginStart="7dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:background="@drawable/ic_baseline_jump_black"/>
+
+        <TextView
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColorLink="@color/colorLinkBlue"
+            android:id="@+id/purchase_link"
+            android:text="@string/dialog_add_microsoft_account_purchase"
+            android:layout_marginStart="7dp"
+            android:textSize="@dimen/text_size_middle"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_marginTop="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <RelativeLayout
+            android:layout_width="60dp"
+            android:layout_height="40dp">
+
+            <!-- ★★★【2026-10-07 恢复 1.4.7 的「登录转圈」】
+                 1.4.9 一度把它物理删掉（当时登录改成了设备码流程，这个圈永远不会被隐藏、
+                 一直空转，用户反馈"下面一个圆圈一直转"）。
+                 现在登录已经**改回 1.4.7 的独立全屏授权页**，
+                 这个圈就该回来了 —— 它的语义正是 1.4.7 的用法：
+                   点「登录」→ 显示此圈 + 隐藏按钮（见 AddMicrosoftAccountDialog.login()）
+                   → 授权回来后再隐藏圈、显示按钮。
+                 ★ 位置照 1.4.7：与按钮叠在同一个 RelativeLayout 里、居中、初始 gone，
+                   按钮盖在上面（relative 后声明的在上层）。 -->
+            <ProgressBar
+                android:visibility="gone"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_centerInParent="true"
+                android:id="@+id/login_progress"/>
+
+            <Button
+                android:singleLine="true"
+                android:textAllCaps="false"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="@string/dialog_add_microsoft_account_login"
+                android:textSize="15sp"
+                android:textColor="@color/colorLinkBlue"
+                android:background="@drawable/launcher_button_parent"
+                android:id="@+id/login_microsoft"/>
+
+        </RelativeLayout>
+
+        <Button
+            android:singleLine="true"
+            android:textAllCaps="false"
+            android:layout_width="60dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="@string/dialog_add_microsoft_account_cancel"
+            android:textSize="15sp"
+            android:textColor="@color/colorPureBlack"
+            android:background="@drawable/launcher_button_parent"
+            android:id="@+id/cancel_login_microsoft"/>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,325 @@
+plugins {
+    id 'com.android.application'
+    // ★ 1.5.0：glTF 人物管线（skin/gltf/*.kt，照搬 FCL）需要 Kotlin。
+    id 'org.jetbrains.kotlin.android'
+}
+
+
+
+// 2026-10-25：输出目录改回 QCL/build_alt —— 用户要求新包继续出现在 build_alt
+// （QCL/build 下的旧包被资源管理器占用过，清不干净）。不影响产物内容。
+buildDir = new File(rootProject.projectDir, 'QCL/build_alt')
+android {
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+    dexOptions {
+        javaMaxHeapSize "4g"
+    }
+	
+    lintOptions {
+        abortOnError false
+    }
+	
+    signingConfigs {
+        release {
+            // QCL is its own product: dedicated key, so it can be installed next to HMCL-PE
+            // instead of replacing it.
+            storeFile file("../qcl.keystore")
+            storePassword "qcl123456"
+            keyAlias "qcl"
+            keyPassword "qcl123456"
+        }
+    }
+    
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+     
+    // ★★★ 对齐 FCL：ABI 按 -Darch 属性切换，默认 all（全 ABI 正式包）。
+    //   调试单架构示例：./gradlew :QCL:assembleRelease -Darch=x86_64
+    //   注意：AGP 禁止 splits.abi 与 ndk.abiFilters 共存，QCL 单 APK 方案只走 abiFilters。
+    def qclArch = System.getProperty("arch", "all")
+
+    defaultConfig {
+        if (qclArch != "all") {
+            ndk {
+                switch (qclArch) {
+                    case "arm":    abiFilters 'armeabi-v7a'; break
+                    case "arm64":  abiFilters 'arm64-v8a';   break
+                    case "x86":    abiFilters 'x86';          break
+                    case "x86_64": abiFilters 'x86_64';       break
+                }
+            }
+        }
+        // 默认（-Darch=all）不写 abiFilters = 全 ABI 正式包
+
+
+
+
+
+        applicationId "com.seashore.launcher"
+        minSdk 26
+        targetSdk 34
+        // Own version line for QCL; kept above 208 so any earlier test build is an upgrade, never a downgrade.
+        // ★ 350 / 1.4.8：修「载入世界」**失去选择权**的问题。
+        //   之前每帧收尾方法里被注入了"o 为空就自动取最新存档" → 一点「载入世界」就直接进了最新那个世界，
+        //   玩家根本来不及选。现在去掉自动加载，改成**点哪个槽位读哪个存档**。
+        // ★ 351 / 1.4.9：修「保存一次后再进载入世界必崩」——
+        //   f_() 的名字清洗只删 "  -  " 没截断 → "ush10-05_23:56.mclevel" → FileNotFoundException。
+        //   改为截断 + 去非法字符 + 补后缀 + **文件不存在就清空 o**（绝不把脏路径交给原版读档）。
+        // ★ 352 / 1.5.0：移除大厅；昼夜背景（白天/黑夜/按时间自动切换）；启动前 Vulkan 检测（26.2+）；
+        //   启动检查界面可上下滑动 + 实时日志区；修 normalizeMcVersion 对 -preN 的归一化。
+        // ★★★ 353 / 1.5.1（2026-10-15 开工，2026-10-16 收口）：
+        //   · **SDL3 输入双路**（照 FCL 移植 5 条：鼠标移动 / 鼠标按键 / 滚轮 / 键盘 / 文本输入）
+        //     ⇒ 修「MC 26.4 能进主菜单但按钮点不动、虚拟键盘失效」
+        //   · 还原被误删的 `sdl_hook.c` 54 行（`proxy_SDL_GL_GetProcAddress` + `eglFallbackLookup`）
+        //   · 抓取状态同步（`qclSyncGrabState` + 拦 `SDL_SetWindowRelativeMouseMode`/`MouseGrab`）
+        //   · **原生 QCL 视角偏移的最后几个坑**（已解决）：
+        //       回退 `InputBridge` 的钳制（"焊死在最左最右"）、照 FCL 每帧重读指针基准
+        //       （"鼠标滑出屏幕"）、进入抓取时把 6 个坐标值一起对齐窗口中心（"点左键大偏移"）
+        //   · 移除 26.3+ 的 Vulkan 提示弹窗；新增「使用原生手机 Vulkan 驱动」开关（全局 + 版本设置）
+        //   · 模组下载遵守版本隔离；整合包 4 级版本嗅探（`ModpackVersionSniffer`）
+        //   · 手臂变粗修复（`fetchMicrosoftCapeOnce` 不再硬编码 slim=false）
+        //   · `DialogFit` 弹窗自适应（修「取消按钮在小屏上出屏」）
+        //   · 修「重命名实例后实例消失」（`FileUtils.renameVersionDir`）
+        //   · 修「Forge 被认成 Fabric」（`ModLoaderDetector` 改加权计分）
+        //   · 修「下载中断致启动失败 / 卡死 0 B/s」（重试 + 续传 + 速度算法 + 停滞检测）
+        //   · 修「二级页面变空白」（`UIManager` 幽灵 currentUI / 空栈崩溃）
+        //   · 修「空目录点游戏设置 NPE 崩溃」（`ModManagerUI` / `WorldManagerUI`）
+        //   · 夜间模式自动同步（`uiMode` 变更自动 recreate）；切排版自动重启
+        //   · 左栏纯自适应（去 ScrollView，按钮 weight 等分）；旧排版人物不再压按钮
+        //   · 新增**字体颜色自定义调节**（外观页）
+        //   ★ 口径：**26.4 的问题已解决；26.3 的问题仍未解决。**
+        // ★★★ 354 / 1.5.2（2026-10-17）：
+        //   · 修「安装 Forge 一直失败」（镜像没返回 Location 时 NPE，且 catch 只抓 IOException）
+        //   · 修「取消收藏后大退重进仍显示旧收藏」（只按 id 删、slug 命中时删不掉）
+        //   · 修「自制加载器（ModLoader / Babric）点了没效果」（onClick 里没有对应分支）
+        //   · 新增：Legacy Fabric / Legacy Fabric API / Cleanroom 加载器
+        //   · 新增：模组/整合包英文查询、跳转对应版本 Wiki 页、执行 Jar 文件
+        // ── 1.5.7（2026-10-27）──────────────────────────────────────────
+        //   · 新增：**Legacy Fabric / Legacy Fabric API 的版本限制**
+        //     上游权威范围：Legacy Fabric 加载器 = 1.3 – 1.13.2（76 个版本，
+        //     含 13w11a / 1.7.10-preN / 15w49a 等快照与 2point0_* / 15w14a 愚人节版）；
+        //     Legacy Fabric API = 1.3 – 1.12.2（168 个版本）。
+        //     不支持的 MC 版本直接**隐藏**「安装游戏」里这两行，并在点开列表前二次校验，
+        //     不再出现「能点开、选完却装不成 / 列表空白」。
+        //   · 修「收藏页取消收藏，大退重进又复活」：
+        //     根因① save() 里的「空列表不许覆盖有内容的文件」守卫，在玩家把收藏
+        //           取消到 0 条时直接拒写 ⇒ 文件保持旧内容 ⇒ 重启全部复活；
+        //     根因② 收藏页的 ★ 只传 f.id 一个键，命中不了就一条都删不掉，
+        //           但界面照样 rebuild() ⇒ 看起来删掉了、重启又回来。
+        versionCode 1
+        versionName "0.1.0"
+
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // ★★★ 对齐 FCL：输出 APK 名带架构标签（FCL 命名 FCL-<type>-<ver>-<abi>.apk），杜绝放错架构。
+    //   -Darch=x86_64 → QCL-release-1.1.2-x86_64.apk；-Darch=arm64 → QCL-release-1.1.2-arm64.apk。
+    //   all → -universal：★仅限本地测试，禁止发布！模拟器 ROM（MuMu 等）会把 universal 包强装成
+    //   arm64 转译（primaryCpuAbi=arm64-v8a），而 JRE 运行时按物理 CPU 选 x86_64，进程与 JRE 不匹配
+    //   → 游戏进不去（09-19 实锤）。发布一律分架构：模拟器用户拿 x86_64 包，真机用户拿 arm64/arm 包。
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def abiTag = (qclArch == "all") ? "universal" : qclArch
+            outputFileName = "Seashore-${variant.buildType.name}-${variant.versionName}-${abiTag}.apk"
+        }
+    }
+    compileOptions {
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        pickFirst 'META-INF/LICENSE.md' // picks the JavaMail license file
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/NOTICE.md'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude("META-INF/*.kotlin_module")
+    }
+
+    // ★★★ 1.4.9 照搬 FCL 的「assets 按架构裁剪」（FCL build.gradle.kts 的 mergeAssets.doLast）。
+    //
+    //   为什么必须有（实测数据）：ndk.abiFilters **只对 lib/ 生效，对 assets/ 下的文件无效**。
+    //   我们的 LWJGL natives 放在 assets/app_runtime/lwjgl*/natives/<abi>/ 下，
+    //   于是打 x86_64 单架构包时四个 ABI 的 so 全进了 APK：
+    //       assets/lwjgl341-natives 未压缩 179.3 MB（压缩后 46 MB）
+    //   其中 libspirv-cross-c-shared.so 一个文件就重复了 4~5 份（单个就 30~38MB）。
+    //
+    //   ★★ 安全性（用户明确要求：首次进入游戏时解压不能出错，否则整包变砖）：
+    //   Lwjgl333Helper.prepare341() 只读**当前设备自己的 ABI 目录**
+    //   （am.list("app_runtime/lwjgl341/natives/" + abi)），解压后**平铺**到
+    //   filesDir/natives/*.so，运行时不查 ABI 子目录 ⇒ 裁掉其它 ABI 不影响任何路径。
+    //   唯一硬约束：abi 为空时 **回退目标是 armeabi-v7a**
+    //   （Lwjgl333Helper: if (nl == null || nl.length == 0) abi = "armeabi-v7a";）
+    //   若把它裁掉，32 位设备会静默拿到空目录（还会写 .ok 标记以为装好了），
+    //   之后所有游戏 dlopen 失败 = 砖。**所以永远保留 armeabi-v7a。**
+    //
+    // ★ 用 AGP 7.2.2 支持的老写法 applicationVariants.all{}——
+    //   新版 androidComponents{} DSL 是 AGP 7.3+ 才有的，本工程没有。
+    applicationVariants.all { variant ->
+        def arch = System.getProperty("arch", "all")
+        if (arch == "all") return
+        def keepAbi = [
+            "arm": "armeabi-v7a", "arm64": "arm64-v8a",
+            "x86": "x86", "x86_64": "x86_64",
+        ].get(arch)
+        if (keepAbi == null) return
+        // ★★★【2026-10-07 修正】原来这里是 `[keepAbi, "armeabi-v7a"]`，
+        //   注释写着「armeabi-v7a 是 prepare341() 的回退目标，任何情况下都必须保留」。
+        //   ★ 实测证明这条规则是**多余的**，而且让每个包白胖 34~55 MB：
+        //     · `Architecture.getInstalledAbiArchitecture()` 读的是
+        //       **`ApplicationInfo.primaryCpuAbi`** = 这个 APK **装成的 ABI**（由 `lib/` 决定）。
+        //     · `RuntimeInstallActivity:377` 也只看 `bin-<this.arch>.tar.xz`，
+        //       而 `this.arch` 同样来自设备上安装的 ABI。
+        //     ⇒ arm64 包（lib/ 只有 arm64-v8a）永远只会用 arm64-v8a 的 natives 与 bin-arm64；
+        //       它自带的那份 armeabi-v7a 是**死重**（连 lib/ 里都没有 32 位 so，想跑 32 位也跑不起来）。
+        //   实测冗余（压缩后）：arm64 34.1 MB / x86_64 55.4 MB / x86 55.4 MB / arm 21.4 MB。
+        def keepList = [keepAbi] as Set
+        def knownAbi = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+        def taskName = variant.name.capitalize()
+        mergeAssetsProvider.configure { assetsTask ->
+            // arch 变化时任务必须重跑，否则产物会残留上一架构的文件
+            assetsTask.inputs.property("qclPruneArch", arch)
+            assetsTask.doLast {
+                def assetsDir = assetsTask.outputDir?.get()?.asFile
+                if (assetsDir == null || !new File(assetsDir, "app_runtime").isDirectory()) return
+                def root = assetsDir
+                int pruned = 0
+                // ① JRE：只保留 universal.tar.xz + bin-<当前架构>.tar.xz
+                //   （RuntimeUtils.installJava 只会取这两个；version 一律保留）
+                //   ★ 只裁 jre8/17/21/25 四个已知目录，将来新增运行时不会被误删
+                ["jre8", "jre17", "jre21", "jre25"].each { String jre ->
+                    def jd = new File(root, "app_runtime/java/" + jre)
+                    if (!jd.isDirectory()) return
+                    jd.listFiles()?.each { f ->
+                        if (!f.isFile()) return
+                        def n = f.name
+                        if (n == "universal.tar.xz" || n == "version") return
+                        if (n.startsWith("bin-") && n.endsWith(".tar.xz")) {
+                            def a = n.substring(4, n.length() - 7)
+                            // ★★【2026-10-07 修正】JRE 分片的命名是 **arm / arm64**，
+                            //   而 natives/jna 目录用的是 **armeabi-v7a / arm64-v8a**。
+                            //   以前这里直接拿 `a` 去比 knownAbi（后者）⇒
+                            //   `bin-arm` / `bin-arm64` **永远匹配不上、从来没被裁过**，
+                            //   每个包白带 ~19 MB。现在按 JRE 自己的命名集合判定。
+                            def jreAbis = ['arm', 'arm64', 'x86', 'x86_64']
+                            def keepJre = ['armeabi-v7a': 'arm', 'arm64-v8a': 'arm64',
+                                           'x86': 'x86', 'x86_64': 'x86_64']["$keepAbi".toString()] ?: keepAbi
+                            if (jreAbis.contains(a) && a != keepJre) {
+                                logger.lifecycle("[QCL] 裁剪非目标架构 JRE: ${jre}/${n}")
+                                f.delete(); pruned++
+                            }
+                        }
+                    }
+                }
+                // ② natives：lwjgl341 / lwjgl333 / jna 下的架构子目录
+                //   ★ 只删名字在 knownAbi 里的目录，未知目录一律不动
+                //   ★★【2026-10-07 修正路径】原来这里写的是 `app_runtime/jna` ——
+                //     **这个目录根本不存在**，真正的 jna 在 `app_runtime/lwjgl333/jna`。
+                //     所以 x86 / x86_64 的 libjnidispatch.so 一直没被裁掉（每个包白带 0.24 MB，
+                //     且清单还会误报"未找到"）。这里两个路径都写上，将来挪位置也不会漏。
+                ["app_runtime/lwjgl341/natives",
+                 "app_runtime/lwjgl333/natives",
+                 "app_runtime/lwjgl333/jna",
+                 "app_runtime/jna"].each { String rel ->
+                    def nr = new File(root, rel)
+                    if (!nr.isDirectory()) return
+                    nr.listFiles()?.each { sub ->
+                        if (sub.isDirectory() && knownAbi.contains(sub.name)
+                                && !keepList.contains(sub.name)) {
+                            logger.lifecycle("[QCL] 裁剪非目标架构 natives: ${sub.name} (${rel})")
+                            // ★ Groovy 的 File 没有 deleteRecursively()，必须用 project 自带的
+                            sub.deleteDir()
+                            pruned++
+                        }
+                    }
+                }
+                if (pruned > 0) {
+                    logger.lifecycle("[QCL] ${taskName} 共裁剪 ${pruned} 处（保留 ${keepList}）")
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    // ★★★★★ 1.5.8：**内置 MobileGlues 渲染器**（照 FCL 1.3.4.3）。
+    //   原来 mg 是外部插件 APK，玩家得自己装；现在直接打进来。
+    //   AAR 里带 jni/{arm64-v8a,armeabi-v7a,x86,x86_64}/libmobileglues.so。
+    implementation files('libs/MobileGlues-release.aar')
+    implementation project(path: ':FilePicker')
+    implementation project(path: ':Terracotta')
+    implementation project(path: ':ZipTools')
+    implementation project(path: ':PojavLauncher')
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.github.naman14:app-theme-engine:0.5.2@aar'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'cat.ereza:customactivityoncrash:2.3.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.moandjiezana.toml:toml4j:0.7.2'
+    implementation 'org.apache.commons:commons-compress:1.20'
+    // ★ ZipFileSystem：自带一份 OpenJDK zipfs（com.sun.nio.zipfs）。
+    //   Android 不带 zipfs，而commons-compress 的 ZipFile 在真机上会抛
+    //   NoClassDefFoundError: ZipFile$Builder（导致导入整合包直接崩）。
+    //   有了它就能用 java.nio.file.FileSystems.newFileSystem("jar:...") 把 zip 挂成 FileSystem。
+    //   模块来源见 ZipFileSystem/build.gradle 顶部说明。
+    implementation project(':ZipFileSystem')
+    // 参照 FCL（libs.versions.toml: commonsCompress=1.26.0 / xz=1.9）：
+    // JRE 运行时改以 universal.tar.xz + bin-<abi>.tar.xz 内置，解压需要 XZ 解码器。
+    implementation('org.tukaani:xz:1.9')
+    // commons-compress 1.26.0 会传递引入 commons-io 2.15.1，而 FilePicker 模块
+    // 仍在使用 libs/commons-io-2.11.0.jar。两者同时进 classpath 会让
+    // checkReleaseDuplicateClasses 直接失败（org.apache.commons.io.* 全量重复）。
+    // 这里只把**传递副本**排掉，FilePicker 那份原样保留，不影响其它模块。
+    configurations.configureEach {
+        exclude group: 'commons-io', module: 'commons-io'
+    }
+    // ★ 锁 commons-lang3 回 3.13.0：
+    //   commons-compress 1.26.0 会把下面 L108 显式声明的 commons-lang3:3.13.0
+    //   顶到 3.14.0，而 3.14.0 这个 jar 在 D8 dex 阶段会**稳定**抛 NPE：
+    //     ERROR: jetified-commons-lang3-3.14.0.jar: D8: java.lang.NullPointerException:
+    //            Cannot invoke "String.length()" because "<parameter1>" is null
+    //   → Task :QCL:mergeExtDexRelease FAILED
+    //   3.13.0 无此问题（工程原本就在用），且 commons-lang3 并非解压 tar.xz 的
+    //   必需依赖 —— 用 force 精确锁定版本，不影响任何显式声明。
+    configurations.configureEach {
+        resolutionStrategy.force 'org.apache.commons:commons-lang3:3.13.0'
+    }
+    implementation 'com.github.steveice10:opennbt:1.5'
+    implementation 'com.jaredrummler:colorpicker:1.1.0'
+    implementation 'com.jaredrummler:android-device-names:2.1.0'
+    implementation 'org.jsoup:jsoup:1.14.3'
+    implementation 'org.apache.commons:commons-lang3:3.13.0'
+    implementation 'org.jenkins-ci:constant-pool-scanner:1.2'
+    implementation 'com.github.gzu-liyujiang:Android_CN_OAID:4.2.4'
+    implementation 'com.github.nedimf:maildroid:v0.1.0-release'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
