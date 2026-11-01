@@ -8,8 +8,9 @@
 
 关键结论索引：
 - **路线**：C 案 = 继承 QCL + 减法特化 + 独立新项（§5）；开发台 = x86_64 AVD 主力、真机仅发版 sanity（§9）。
-- **渲染线**：GL4ES/Krypton 现成够用，QCL 卡死的自研渲染器属被砍现代层（§10）；阴影三角机理锁定 = Tessellator 预三角化 × gl4es inColor 插值（§12-§13），修复实装为 fork `-Dlf.gl4esquad`（结构指纹，混淆名免疫），b1.7.3 真机命中（§14）。
-- **legacyfix × Android**：agent 语义存活，但价值收敛为游戏侧补丁 + 网络代理，渲染层零触碰（§14）；QCL 捆绑 GL4ES-Fix 表名式对 repak jar 翻车（§14/§16）。
+- **渲染线**：GL4ES/Krypton 现成够用，QCL 卡死的自研渲染器属被砍现代层（§10）；阴影三角机理锁定 = Tessellator 预三角化 × gl4es inColor 插值（§12-§13；**§35 修订：坏的在法线不在颜色**），修复实装为 fork `-Dlf.gl4esquad`（结构指纹，混淆名免疫），b1.7.3 真机命中（§14）。**§16 定调：Seashore 采映射表方案（表扩双家族），指纹降为兜底；桌面真 GL 无此病，补丁 Android 专属。**
+- **渲染线再定调（2026-11-01，§34）**：自研要求降低 → **fork Krypton（NG-GL4ES）出"Seashore 渲染器"**，与 Krypton 并列、修复从 Krypton 出发；天空/classic 色块根因已定罪（`GL_C3F_V3F vert=4` 上游 typo，§32/§33，Krypton 原样带病待直移），阴影三角已闭环（§35：真凶=Java 预三角化零法线重复顶点，C 侧仅 FPE `normalize(0)` 放大，**fork 无此面可修**，落点=映射表/`-Dlf.gl4esquad`）。详见下"渲染器 Fork 线"。
+- **legacyfix × Android**：agent 语义存活，但价值收敛为游戏侧补丁 + 网络代理，渲染层零触碰（§14）；QCL 表名式 GL4ES-Fix 域内完备、repak 属域外 miss（§16 口径修正），Seashore 表方案据此成立。
 - **启动路径取证**：launchwrapper-1.6 无 blackboard → 钩 VanillaTweaker；QCL 自定义 AlphaVanillaTweaker 使第三方 agent 注入面静默死（"假注入成功"陷阱，§16）→ **拍板：Seashore 不走 launchwrapper，直调主类 + javaagent 直连，启动语义与补丁语义解耦（§16）**。
 - **QCL 输入面缺陷**：键盘通道缺失（dexdump 实锤真缺），Seashore 立项需求（§15）。
 - **闸门状态**：闸门一（legacyfix 上 Android 存活面）**已闭环**；闸门二（减法依赖图审计）**转入 Phase 2**。
@@ -18,10 +19,10 @@
 
 **目标**：得到"可构建、可安装、可跑远古版本、日志链完整"的 Seashore 骨架，行为等价 QCL 1.5.7 现状。
 
-1. **基座落库**：以 `reference/Quanta-Craft-Launcher`（分支 1.5.7）为源，工程主体迁入 Seashore 仓；GPL-3.0 合规——保留版权头与 LICENSE，`reference/` 维持 gitignore 不入库。
+1. **基座落库**：以 `reference/Quanta-Craft-Launcher`（分支 1.5.7）为源，工程主体迁入 Seashore 仓；GPL-3.0 合规——保留版权头与 LICENSE，`reference/` 维持 gitignore 不入库。**GL4ES-Fix 表模块随移植保留**（§16 定调：Seashore 采映射表方案，表扩覆盖双家族=官方混淆+repak 名，应用时机改运行时翻 clinit，不再离线改 jar）。
 2. **品牌剥离**：包名/`applicationId`（`com.qcl.launcher` → Seashore 命名空间）、FileProvider authority、外置存储路径常量（`QCL/.minecraft` → `Seashore/.minecraft`）、名字与图标自建（banner 已有）；UI 布局沿用 FCL 血脉不重写。
 3. **开发环境**：Android Studio + gradle wrapper 锁版本；`abiFilters 'x86_64'` 零 NDK；AVD `emulator-5554` 为主力测试机（adb：`D:\Android\Sdk\platform-tools\adb.exe`）；调试日志路径对齐 Pojav log（`files/debug/pojav_latest_log.txt`）。
-4. **修复件挂载验证**：骨架上以 `-javaagent:legacyfix` + 预设（`lf.gl4esquad` / `lf.iconnoop` / `lf.deawt.disable` / `lf.assetsDir`）跑 b1.7.3 与 inf-20100618——直连路径天然生效（无 LW），顺带补上点/斜杠修正的真机命中证据（§16 顺延账）。
+4. **修复件挂载验证**：骨架上以 `-javaagent:legacyfix` + 预设（`lf.iconnoop` / `lf.deawt.disable` / `lf.assetsDir`）跑 b1.7.3 与 inf-20100618——直连路径天然生效（无 LW）；阴影三角主路径走 Seashore 自家映射表（步骤 1），`lf.gl4esquad` 仅作兜底顺带验证真机命中（§16 顺延账；离线唯一性取证已闭环：两包全类扫描各恰好命中 1）。
 
 **验收**：全新 clone → 一条命令构建安装 → 启动 b1.7.3 阴影三角消失、0618 可进游戏；升级/替换 jar 与 cfg 的路径文档化。
 
@@ -30,7 +31,7 @@
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
 
 初判砍面（待审计证据化）：
-- 渲染器选择层的现代项（Vulkan/Zink/自研 GL 层；GL4ES/Krypton 保留为唯一路径）；
+- 渲染器选择层的现代项（Vulkan/Zink/自研 GL 层；GL4ES/Krypton/Seashore-fork 保留为唯一路径，见"渲染器 Fork 线"）；
 - 现代版启动链：1.6+ 版本解析（新 version.json 格式/现代 libraries 规则）、Forge/Fabric/OptiFine 安装面、现代登录链（保留离线 + 远古正版校验，MS 登录是否留 = 调研点）；
 - 数据层：现代版本表与下载源（Betacraft 端点为主）；
 - 壳内杂项：boatLauncher 等未启用分支。
@@ -45,6 +46,14 @@
 
 ## 后续线（未排期，挂账）
 
+- **账号线·MS 登录 client-id 已备案（2026-10-31，同日换发：旧 id `ae2f1dd0-…` 有问题作废）**：`77b8ff69-e48f-4a72-ae7d-f6fb8490b477`（Seashore 自建 Azure 应用注册）。性质 = 公开构件（Pojav/FCL/HMCL 同款各自内置，非机密）；预期形态 = 公共客户端 device-code / MSAL 流，**不配 client secret**。OAuth 授权 URL 里出现的就是它，后续实现时以本条为准，防错拿别家 id（FCL/Pojav 的 id 混用会踩 Azure 重定向白名单）。Phase 2 L34"MS 登录是否留"调研点就此备好前提件。
 - 键盘输入通道立项（§15：捕获层 / 系统键分流 / IME 字符输入）。
 - legacyfix fork 发版轮：diff 清点出清测试脚手架（`lf.direct` 已拆）、s3 文件级 handler、a1.1.1 版本门、`lf.qcl` 预设、§14 实现轮总账补记。
-- E5 窗口层对照、classic 旋转 resize 实测、gl4es 源码取证。
+- E5 窗口层对照、classic 旋转 resize 实测。
+- **渲染器 Fork 线（Krypton 基座，2026-11-01 定调，详见卷宗 §34/§35）**：自研降级 → fork **Krypton Wrapper（NG-GL4ES 0.4.5，MIT）**，产出与 Krypton 并列的"Seashore 渲染器"条目，修复从 Krypton 代码出发。
+  - **三面账**：①天空/classic 色块=`GL_C3F_V3F vert=4` 上游 typo，Krypton 原样带病，**直移已验证的 `vert=4→3`**（§32/§33）；②阴影三角（0611~b1.7.3）=**已闭环销案（§35）**：真凶=Java 预三角化零法线重复顶点、C 侧仅 FPE `normalize(0)` 放大，**fork 无此面可修**，出货=映射表/`-Dlf.gl4esquad` 数据侧（#429 可据此回帖）；③§31 崩溃 sizeof=Krypton 已修，白捡。
+  - **与游戏侧映射表的关系**：fork 是 C 侧根治（仅 C3F 色块面；阴影三角本就数据侧问题，§35），`-Dlf.gl4esquad`/映射表（§16）是游戏侧补丁——fork 验收后 Seashore 默认渲染器=自家 fork，映射表**退役为可选项**（仅当用户手动切回 Krypton/Holy-GL4ES 等未修渲染器时生效；阴影三角面则**始终归映射表**，与渲染器无关；也继续反哺 legacyfix fork 服务非 Seashore 场景）。
+  - **构建面**：CMake 自带 `if(ANDROID)` 一等分支（NOX11+链 android/log，EGL 运行时 dlopen，与 Pojav gl4es-114-extra 同形态，壳集成零摩擦）；硬约束=**NDK ≥r26**（C++23 + glslang/SPIRV-Cross 静态捆绑，我们 r30 满足）；`reference/NG-GL4ES` 本地副本无 `.git` 且 submodule 空，**fork 工作目录须上游 clone 重建**；COMPILE.md Android 节是上游陈旧文档（提 Android.mk，实际无此文件）。
+  - **ABI 与内置**：arm64-v8a+x86_64 先行（AVD 验证）→ 扩 armeabi-v7a；x86(32) 按 §9 best-effort/不 ship。产物 `libng_gl4es.so` 改名（建议 `libss_gl4es.so`）进 `app/src/main/jniLibs/<abi>/`，重依赖编译一次性成本、产物入库缓存，**壳侧维持 fork 期零 NDK**（§9）。渲染器注册在壳层，Seashore 默认渲染器=自家 fork（直接规避 §32"切版本回落 Krypton"验证坑）。
+  - **工单序**：①fork 目录重建+NDK 编 arm64/x86_64 基座跑通 → ②直移 `vert=4→3`（AVD 坏窗口 0.0.14a_08/0.0.23a_01 回归）→ ③~~阴影三角取证定罪~~（销案 §35，归映射表轮）→ ④扩 v7a+内置 Seashore+条目命名。**验收**=坏窗口天空色块全消（阴影三角验收在映射表轮，非 fork 轮）。
+  - 前置事实：gl4es 阅读基座 `reference/gl4es`（ptitSeb master）已落；E5 标签修正仍成立（真机两渲染器都曾跑：`libng_gl4es.so`=Krypton、`libgl4es_114.so`=Holy-GL4ES，§32 取证轮在后者）。VirGL/Zink"mesa 在场未接管"根因开放（下轮 `MESA_DEBUG=1` 取证）。
