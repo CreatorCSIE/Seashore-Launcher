@@ -31,7 +31,7 @@
 ## 🌟 技术要点
 
 - **远古版本全谱系**：继承 QCL 的 258 枚考古归档版本下载与骨 JSON 模板安装链（`LegacyArchiveInstallTask`），数据端点与 Attic 桌面仓同源（Betacraft 档案快照）；全远古中文补丁（逐版混淆名表）随基座移植。
-- **渲染器线（2026-11-01 定调，§34/§35，已迁独立仓 Seashore-Render）**：不追自研——fork **Krypton（NG-GL4ES，MIT）**出"Seashore 渲染器"条目。远古特化后渲染需求只剩 GL 1.x/2.x 固定管线 → GLES，现成转译层够用；QCL 卡死的自研渲染器恰属被砍的现代层。
+- **渲染器线（2026-11-01 定调，§34/§35，已迁独立仓 Seashore-Renderer）**：不追自研——fork **Krypton（NG-GL4ES，MIT）**出"Seashore 渲染器"条目。远古特化后渲染需求只剩 GL 1.x/2.x 固定管线 → GLES，现成转译层够用；QCL 卡死的自研渲染器恰属被砍的现代层。
 - **渲染三案已取证定罪（§31-§35）**：天空/classic 色块 = gl4es `glInterleavedArrays(GL_C3F_V3F)` 步长上游 typo（`vert=4` 应 3），一行修复已 AVD 终验；阴影三角（0611~b1.7.3）= 游戏预三角化零法线重复顶点，属数据侧修复（映射表 / `-Dlf.gl4esquad`）；间歇崩溃 = listdraw EBO sizeof，Krypton 已修。**"第三方转译天花板"论不成立**。
 - **修复件挂载**：legacyfix fork（`-javaagent`）+ Seashore 映射表方案（表扩双家族）；启动语义与补丁语义解耦——直调主类 + javaagent 直连，不走 launchwrapper（§16）。
 - **UI 与品牌**：布局沿用 FCL 血脉（GPL-3.0 允许，可微调）；名字、图标、包名（`com.qcl.launcher` → Seashore 命名空间）自建。
@@ -47,7 +47,7 @@
 | 闸门二 | 减法可行性依赖图审计 | 🔄 转入 Phase 2 |
 | Phase 1 | 基座落库 + 品牌剥离 + x86_64 AVD 脚手架 | 📋 未开工 |
 | Phase 2 | 减法特化（收敛 Pre-Classic → b1.8/1.5.2） | 📋 未开工 |
-| 渲染器 Fork 线 | fork Krypton → 直移 `vert=4→3` → 扩 ABI 内置 | ➡️ 已迁出独立仓 [CreatorCSIE/Seashore-Render](https://github.com/CreatorCSIE/Seashore-Render)（工单见其 plan.md）；主仓仅留 Phase 1 内置/注册接口 |
+| 渲染器 Fork 线 | fork Krypton → 直移 `vert=4→3` → 扩 ABI 内置 | ➡️ 已迁出独立仓 [CreatorCSIE/Seashore-Renderer](https://github.com/CreatorCSIE/Seashore-Renderer)（工单见其 plan.md）；主仓仅留 Phase 1 内置/注册接口 |
 
 ---
 
@@ -56,7 +56,7 @@
 - **Android Studio + SDK + x86_64 system image**（≈ 15-20GB）；Windows 走 WHPX（Hyper-V 平台，HAXM 已弃用）；AVD 内存 4GB+。
 - **Gradle 构建需 JDK 17+**（壳构建侧；游戏侧捆绑 jre8 移植，两者无关）。
 - **主力开发台 = x86_64 AVD**（硬件虚拟化近原生 CPU，`-gpu host`）；真机（任意 arm64 旧手机/盒子）= 发版 sanity，**非前置门槛**（决策全量见纪要 §9）。
-- 渲染器 fork 线（独立仓 Seashore-Render）是唯一碰 NDK 的线（NDK ≥r26，CMake；r30）；壳侧维持 **fork 期零 NDK**（`abiFilters 'x86_64'`）。
+- 渲染器 fork 线（独立仓 Seashore-Renderer）是唯一碰 NDK 的线（NDK ≥r26，CMake；r30）；壳侧维持 **fork 期零 NDK**（`abiFilters 'x86_64'`）。
 
 ---
 

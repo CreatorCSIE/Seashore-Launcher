@@ -518,7 +518,8 @@ TRW 探针版（1223064B）16:50 部署；第一轮 logcat 后台进程 17:23 �
 
 **修复（工作区，未 commit，遵守纪律）**：gl4es.c L169 `vert = 4` → `vert = 3`。编译部署（so md5 22456e21，x86_64），用户进世界确认：**天空巨型三角全部消失，含生成世界进度条色污染**（进度条文字 quad 同为 color-only Tesselator 路径，一并解释 GUI 一次性伪影）。
 
-**现场状态（AVD 恢复后，2026-11-01 收口）**：gl4es 工作树已**剥离全部探针**回干净态——`git checkout` 11 个改动文件 + 删 gltrace.c/h/Application.mk，重打且仅重打三处：①gl4es.c `GL_C3F_V3F vert=3`（天空线修复）②listdraw.c `ilen*sizeof(GLushort)`（§31 崩溃线修复）③Android.mk 构建脚手架（`gl4es_114` 模块名 + BUILD_SHARED_LIBRARY，上游为静态库 GL，此为部署必需）。最终 diff 仅 3 文件 +5/-7。探针全量存档于 `reference/gl4es-forensics/`（wedge-series.patch 725 行 + gltrace.c/h + Application.mk，随时可恢复取证形态）。设备侧：纯净修复版 so（md5 `ea5ac172`，1220216B）已部署应用 lib 目录；trace 日志 404MB、w18*.sh 判读脚本、截图 png、probe.so、trg18f.txt 等全部删除；`/data/local/tmp` 仅存 `libgl4es_114.orig.so`（QCL 出厂备份，1282432B）作回滚保险。**渲染器选择坑（虚惊一案）**：QCL 切游戏版本后渲染器默认回落到 Krypton，不再走 libgl4es_114.so——验证 gl4es 修复必须手动选 Holy-GL4ES，否则伪影"复发"是假象（Krypton 不含本修复）。另：toybox `grep -iE 'a|b|c'` 正则在 AVD 上会段错误崩掉 grep 自身（tombstone_29=grep，非游戏），判读脚本避免该写法。**纯净版终验（2026-11-01 收口）**：0.0.14a_08（坏窗口首版）+ Holy-GL4ES + `ea5ac172` 进世界——天空干净（蓝底+棋盘云）、树叶/地形全正常、43 帧，用户截图确认。天空线全链闭环。仍未 commit（遵守纪律）。**待办**：①~~楔形线（c0.0.23a_01 classic 会话）与本 typo 是否同族~~ → **已闭环，见 §33**；②上游溯源已完成（见上，v1.1.4 同带此 bug）→ 可整理 issue/PR 素材提交 ptitSeb/gl4es（一行 `vert=4→3`，附 renderClouds 复现路径与 TRPC/TRV6 证据）。
+
+**现场状态（AVD 恢复后，2026-11-01 收口）**：gl4es 工作树已**剥离全部探针**回干净态——`git checkout` 11 个改动文件 + 删 gltrace.c/h/Application.mk，重打且仅重打三处：①gl4es.c `GL_C3F_V3F vert=3`（天空线修复）②listdraw.c `ilen*sizeof(GLushort)`（§31 崩溃线修复）③Android.mk 构建脚手架（`gl4es_114` 模块名 + BUILD_SHARED_LIBRARY，上游为静态库 GL，此为部署必需）。最终 diff 仅 3 文件 +5/-7。探针全量存档于 `reference/gl4es-forensics/`（wedge-series.patch 725 行 + gltrace.c/h + Application.mk，随时可恢复取证形态）。设备侧：纯净修复版 so（md5 `ea5ac172`，1220216B）已部署应用 lib 目录；trace 日志 404MB、w18*.sh 判读脚本、截图 png、probe.so、trg18f.txt 等全部删除；`/data/local/tmp` 仅存 `libgl4es_114.orig.so`（QCL 出厂备份，1282432B）作回滚保险。**渲染器选择坑（虚惊一案）**：QCL 切游戏版本后渲染器默认回落到 Krypton，不再走 libgl4es_114.so——验证 gl4es 修复必须手动选 Holy-GL4ES，否则伪影"复发"是假象（Krypton 不含本修复）。另：toybox `grep -iE 'a|b|c'` 正则在 AVD 上会段错误崩掉 grep 自身（tombstone_29=grep，非游戏），判读脚本避免该写法。**纯净版终验（2026-11-01 收口）**：0.0.14a_08（坏窗口首版）+ Holy-GL4ES + `ea5ac172` 进世界——天空干净（蓝底+棋盘云）、树叶/地形全正常、43 帧，用户截图确认。天空线全链闭环。仍未 commit（遵守纪律）。**待办**：①~~楔形线（c0.0.23a_01 classic 会话）与本 typo 是否同族~~ → **已闭环，见 §33**；②~~上游溯源已完成（见上，v1.1.4 同带此 bug）→ 可整理 issue/PR 素材提交 ptitSeb/gl4es（一行 `vert=4→3`，附 renderClouds 复现路径与 TRPC/TRV6 证据）~~ → **用户裁定（2026-11-01）：不向 gl4es 上游交 PR，本账撤销**；修复以我方 fork（Seashore-Renderer）+ QCL issue #5 通报形态落地。
 
 ## 33. Classic 色块/楔形线**同族闭环**：与 §32 同一 `GL_C3F_V3F vert=4` typo（2026-11-01）
 
@@ -554,7 +555,7 @@ TRW 探针版（1223064B）16:50 部署；第一轮 logcat 后台进程 17:23 �
 - **本地副本不完整**：`reference/NG-GL4ES` 为无 `.git` 的源码拷贝，两 submodule 目录空——fork 工作目录须上游 clone（含 submodule）重建。COMPILE.md 的 Android 节是上游 gl4es 陈旧文档（提 Android.mk，本仓库无此文件），实际构建=NDK 工具链文件 + cmake。
 - ABI 矩阵：arm64-v7a/x86 由 gl4es 本体长期支持，glslang 亦支持 32 位 ARM；x86(32) 按 §9 拍板 best-effort 或不 ship。**内置形态**：预编译 so 进 `app/src/main/jniLibs/<abi>/`，渲染器注册在壳层（§32 坑：QCL 切版本回落默认渲染器，Seashore 可把 fork 版设为默认，规避该坑）。
 
-**Fork 工单（按序）**：①fork 工作目录重建（上游 clone+submodule）→ NDK r30 CMake 编 **arm64-v8a + x86_64**（AVD 验证优先）跑通基座 ②直移 `vert=4→3`（已验证，预期天空/classic 色块全消）③阴影三角 C 侧取证定罪（TRIANGLES-arrays vs QUADS 展开两批路径差分）→ 出修复或上游 PR ④扩 armeabi-v7a（x86 视 §9 策略）+ 内置 Seashore jniLibs + 渲染器条目命名待定。§32 待办②（上游 PR 素材）优先级不变，可并行。
+**Fork 工单（按序）**：①fork 工作目录重建（上游 clone+submodule）→ NDK r30 CMake 编 **arm64-v8a + x86_64**（AVD 验证优先）跑通基座 ②直移 `vert=4→3`（已验证，预期天空/classic 色块全消）③阴影三角 C 侧取证定罪（TRIANGLES-arrays vs QUADS 展开两批路径差分）→ 出修复或上游 PR ④扩 armeabi-v7a（x86 视 §9 策略）+ 内置 Seashore jniLibs + 渲染器条目命名待定。~~§32 待办②（上游 PR 素材）优先级不变，可并行~~（**2026-11-01 用户裁定：不交上游 PR，撤账**）。
 
 **工单③状态（2026-11-01）**：已闭环（§35）——差分结论=两路径严格等价、C 无罪，真凶在 Java 数据层。**Krypton fork 不需要修此面**，出货落点改写为壳侧 `-Dlf.gl4esquad`（§12 立项的单点 fork 补丁）。
 
@@ -576,4 +577,4 @@ TRW 探针版（1223064B）16:50 部署；第一轮 logcat 后台进程 17:23 �
 - **A 数据侧（推荐）**：壳侧 legacyfix fork 单点补丁 `-Dlf.gl4esquad`（§12 已立项、E2 已实证），对 0611~b1.7.3 窗口版本翻字段。与渲染器无关，Krypton/Holy/未来自研全受益。
 - **B C 侧防御（可选增强）**：FPE `normalize` 前加零向量保护——可兜住一切发零法线的应用（不止 MC），但属超出 GL spec 未定义区的行为固化，进上游 PR 前需单独评估。
 
-**上游 PR 素材（§32 待办①）增补**：#429（b1.7.3+1.12.2 同症状、open、零评论）可直接以本节证据链回帖定位：Java 侧数据 bug + shader `normalize(0)` 未定义行为，非 gl4es 展开/合并/颜色链路问题。
+**上游 PR 素材（§32 待办①）增补**：#429（b1.7.3+1.12.2 同症状、open、零评论）可直接以本节证据链回帖定位：Java 侧数据 bug + shader `normalize(0)` 未定义行为，非 gl4es 展开/合并/颜色链路问题。（**2026-11-01 用户裁定：不向 gl4es 上游交 PR/回帖，本段仅作素材存档**；本案修复面本就在 Java 侧，出货走选项 A `-Dlf.gl4esquad`，与上游无关。）
