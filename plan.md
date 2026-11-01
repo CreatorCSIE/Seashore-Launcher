@@ -31,7 +31,7 @@
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
 
 初判砍面（待审计证据化）：
-- 渲染器选择层的现代项（Vulkan/Zink/自研 GL 层；GL4ES/Krypton/Seashore-fork 保留为唯一路径，见"渲染器 Fork 线"）；
+- 渲染器选择层的现代项（**2026-11-01 拍板**：只留 Holy-GL4ES + Krypton + Seashore-Renderer 三条目、默认 fork；砍 Zink/VirGL/MobileGlues，见"渲染器 Fork 线"）；
 - 现代版启动链：1.6+ 版本解析（新 version.json 格式/现代 libraries 规则）、Forge/Fabric/OptiFine 安装面、现代登录链（保留离线 + 远古正版校验，MS 登录是否留 = 调研点）；
 - 数据层：现代版本表与下载源（Betacraft 端点为主）；
 - 壳内杂项：boatLauncher 等未启用分支。
@@ -57,4 +57,4 @@
   - **两步走**：验证轮=直接挂上游 `GL4ESFix_v1.0-javaagent.jar` + `-Dgl4esfix.mcVersion=b1.7.x`（家族名键，勿传精确版本）在 Seashore 骨架复现 E2 痊愈；发版形态=内化进 `legacyfix-attic` fork（§11 单 fork 双平台，桌面/Android 同一构件）。
   - **边界**：与渲染器无关（§35 数据面），归主仓/legacyfix fork，**不进 Seashore-Renderer 工单**；渲染器选择坑（§32）属壳层 UX，与本补丁正交。
 - E5 窗口层对照、classic 旋转 resize 实测。
-- **渲染器 Fork 线（已迁出独立仓，2026-11-01）**：工作位 = `e:\4k\github-projects\Seashore-Renderer`（remote `CreatorCSIE/Seashore-Renderer`，fork NG-GL4ES 0.4.5，submodule 齐），**计划整迁其 plan.md**（三面账/工单序/纪律/接口账以该文件为准），主仓不再挂渲染器侧工单。根因结论留在卷宗 §31-§35：C3F 色块 typo=独立仓直移；阴影三角=**主仓映射表**（`-Dlf.gl4esquad`，§16/§35——游戏侧数据面，主仓仍管此面，与渲染器无关）；崩溃 sizeof=上游已修白捡。主仓余下接口 = Phase 1 jniLibs 内置 + 渲染器条目注册 + 设默认（规避 §32 切版本回落坑）。VirGL/Zink"mesa 在场未接管"悬案留卷宗挂账。
+- **渲染器 Fork 线（已迁出独立仓，2026-11-01）**：工作位 = `e:\4k\github-projects\Seashore-Renderer`（remote `CreatorCSIE/Seashore-Renderer`，fork NG-GL4ES 0.4.5，submodule 齐），**计划整迁其 plan.md**（三面账/工单序/纪律/接口账以该文件为准），主仓不再挂渲染器侧工单。根因结论留在卷宗 §31-§35：C3F 色块 typo=独立仓直移；阴影三角=**主仓映射表**（`-Dlf.gl4esquad`，§16/§35——游戏侧数据面，主仓仍管此面，与渲染器无关）；崩溃 sizeof=上游已修白捡。主仓余下接口 = Phase 1 jniLibs 内置 + 渲染器条目注册 + **默认=fork（Seashore-Renderer，2026-11-01 拍板）**（规避 §32 切版本回落坑）。渲染器选项收敛为三：**Holy-GL4ES + Krypton + Seashore-Renderer（默认）**，Zink/VirGL/MobileGlues 随 Phase 2 砍除。VirGL/Zink"mesa 在场未接管"悬案留卷宗挂账。
