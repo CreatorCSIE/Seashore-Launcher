@@ -248,7 +248,7 @@ public class PojavLauncher {
             args.add("-Dos.version=Android-" + Build.VERSION.RELEASE);
             args.add("-Dpojav.path.minecraft=" + gameLaunchSetting.gameFileDirectory);
             args.addAll(JREUtils.getJavaArgs((Context)context));
-            args.add("-Dnet.minecraft.clientmodname=Quanta Craft Launcher");
+            args.add("-Dnet.minecraft.clientmodname=Seashore Launcher");
             args.add("-Dfml.earlyprogresswindow=false");
             // ★★★ 1.3.8：全面对齐 FCL 的 JVM 参数（QCL 原先缺失的补齐）。
             //   动机：高版本装了渲染类 mod（Sodium 等）会崩溃、部分渲染异常；FCL 靠这些参数规避。
@@ -297,7 +297,7 @@ public class PojavLauncher {
             } catch (Throwable ignoredF) {
             }
             //   ⑧ 版本 jar / 启动器标识（照 FCL）：供 mod 读取。
-            args.add("-Dminecraft.launcher.brand=QCL");
+            args.add("-Dminecraft.launcher.brand=Seashore");
             try {
                 args.add("-Dminecraft.launcher.version=" + context.getPackageManager()
                         .getPackageInfo(context.getPackageName(), 0).versionName);

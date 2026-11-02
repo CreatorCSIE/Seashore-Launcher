@@ -17,18 +17,12 @@
         android:layout_alignParentBottom="true"
         android:orientation="vertical">
 
+        <!-- ★ Seashore：原版此处还有第二行硬编码 "QCL" 水印，品牌剥离时删除。 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="@string/app_name"
-            android:textSize="10sp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="QCL"
             android:textSize="10sp"/>
 
     </LinearLayout>
