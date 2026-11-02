@@ -102,7 +102,7 @@ public class InitializeSetting {
             return GsonUtils.getPrivateGameSettingFromFile(AppManifest.SETTING_DIR + "/private_game_setting.json");
         }
         int findBestRAMAllocation = MemoryUtils.findBestRAMAllocation(context);
-        PrivateGameSetting privateGameSetting = new PrivateGameSetting(false, true, true, false, false, false, false, new JavaSetting(true, AppManifest.JAVA_DIR + "/default"), "", "", "", new GameDirSetting(1, AppManifest.DEFAULT_GAME_DIR), new BoatLauncherSetting(false, "GL4ES115", "default"), new PojavLauncherSetting(true, "ng_gl4es", "default"), new RamSetting(findBestRAMAllocation, findBestRAMAllocation, true), "Default", 1.0f);
+        PrivateGameSetting privateGameSetting = new PrivateGameSetting(false, true, true, false, false, false, false, new JavaSetting(true, AppManifest.JAVA_DIR + "/default"), "", "", "", new GameDirSetting(1, AppManifest.DEFAULT_GAME_DIR), new BoatLauncherSetting(false, "GL4ES115", "default"), new PojavLauncherSetting(true, "ss_gl4es", "default"), new RamSetting(findBestRAMAllocation, findBestRAMAllocation, true), "Default", 1.0f);
         GsonUtils.savePrivateGameSetting(privateGameSetting, AppManifest.SETTING_DIR + "/private_game_setting.json");
         return privateGameSetting;
     }

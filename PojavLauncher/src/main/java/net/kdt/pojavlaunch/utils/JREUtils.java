@@ -272,7 +272,8 @@ public class JREUtils {
             if (property != null) {
                 str6 = property;
             }
-            if ("ng_gl4es".equals(str6)) {
+            // ★ Seashore：自家 fork（libss_gl4es.so）= Krypton 语义，env 集复用 ng_gl4es 分支。
+            if ("ng_gl4es".equals(str6) || "ss_gl4es".equals(str6)) {
                 arrayMap.remove("MESA_LOADER_DRIVER_OVERRIDE");
                 arrayMap.remove("MESA_GL_VERSION_OVERRIDE");
                 arrayMap.remove("MESA_GLSL_VERSION_OVERRIDE");
@@ -294,7 +295,8 @@ public class JREUtils {
                 str5 = "ng_gl4es";
                 str6 = "opengles3_desktopgl_zink_kopper";
             } else {
-                str5 = "ng_gl4es";
+                // ★ Seashore：ss_gl4es 时 str5 与之对齐，避免 POJAV_RENDERER 被写成 native 侧未知的 "ss_gl4es"。
+                str5 = "ss_gl4es".equals(str6) ? "ss_gl4es" : "ng_gl4es";
             }
             if (!str5.equals(str6)) {
                 arrayMap.put("POJAV_RENDERER", str6);
@@ -613,6 +615,11 @@ public class JREUtils {
     }
 
     public static String getGraphicsLibrary(String str) {
+        // ★ Seashore：fork 渲染器不在下方反编译 hashCode switch 内，早退补映射
+        //   （否则落 default=libgl4es_114.so，即带 §31 sizeof 崩溃 bug 的出厂件）。
+        if ("ss_gl4es".equals(str)) {
+            return "libss_gl4es.so";
+        }
         str.hashCode();
         char c = 65535;
         switch (str.hashCode()) {
@@ -704,6 +711,17 @@ public class JREUtils {
         String str2;
         if (str == null) {
             return null;
+        }
+        // ★ Seashore：fork 渲染器不在下方反编译 hashCode switch 内，早退补映射
+        //   （GLFW/LWJGL2 路径经此 dlopen；漏了会落 default=libgl4es_114.so 崩溃件）。
+        if ("ss_gl4es".equals(str)) {
+            str2 = "libss_gl4es.so";
+            if (dlopen(str2) || dlopen(findInLdLibPath(str2))) {
+                return str2;
+            }
+            Log.e("RENDER_LIBRARY", "Failed to load renderer " + str2 + ". Falling back to GL4ES 1.1.4");
+            dlopen(nativeLibDir + "/libgl4es_114.so");
+            return "libgl4es_114.so";
         }
         str.hashCode();
         char c = 65535;

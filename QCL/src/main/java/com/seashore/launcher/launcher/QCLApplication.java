@@ -38,7 +38,14 @@ public class QCLApplication extends Application {
         AppManifest.initializeManifest(this);
         // ★★★ 1.1.1 SDL3：把 C++ 库提前到主线程加载，避免在游戏渲染线程 dlopen 时触发
         // libc++ 的 iostream/locale 静态初始化崩溃（fault addr 0x0）。
-        try { System.loadLibrary("bytehook"); } catch (Throwable ignored) { }
+        // ★ Seashore：bytehook 的 Java 桥类（com.bytedance.android.bytehook.ByteHook）不在本包（上游 release 同样缺，
+        //   其游戏侧 hook 走 dlopen+dlsym 不经 JNI_OnLoad，Java 桥从未生效）。直接 loadLibrary 在 debuggable 构建下
+        //   会触发 CheckJNI 强制 abort（ART 对 debuggable 无视 dalvik.vm.checkjni=false）。
+        //   前置 ClassNotFound 探测：类缺失则跳过加载 = 与 release 静默失败等价，类补齐后自动恢复原行为。
+        try {
+            Class.forName("com.bytedance.android.bytehook.ByteHook");
+            System.loadLibrary("bytehook");
+        } catch (Throwable ignored) { }
         try { System.loadLibrary("SDL3"); } catch (Throwable ignored) { }
     }
 

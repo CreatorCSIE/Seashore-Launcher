@@ -190,16 +190,13 @@ public final class RendererCompat {
     //   recommended：之前 5 个都标 ★推荐，现只保留 Krypton（用户指定的"最好的"）。
     //     · Krypton Wrapper：**最好的，支持全部历史版本（含远古），但不支持 26.3** ——
     //       min 留空 ⇒ 保留「含远古版本」；max 填 26.2 ⇒ 不会误导成支持 26.3
-    public static final Info[] ALL = {new Info("opengles2", "Holy-GL4ES", "Holy GL4ES (OpenGL 2.1)", "libgl4es_114.so", "libEGL.so", "", "1.21.4", "1.21.4", true, false), new Info("ng_gl4es", "Krypton Wrapper", "Krypton Wrapper (OpenGL 3.1+；支持所有历史版本含远古，不支持 26.3)", "libng_gl4es.so", "libEGL.so", "", "26.2", "26.2", true, true), new Info("zink", "Zink", "Kopper Zink (OpenGL 4.6, Mesa zink on Vulkan；26.3+ 唯一有希望的选项，需要设备有可用 Vulkan)", "libglxshim.so", "libEGL_mesa.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_virgl", "VirGLRenderer", "VirGLRenderer (OpenGL 4.3, Mesa 软渲染；上限已放开至 26.4，但真机能否跑 26.3+ 未实测)", "libOSMesa_81.so", "libEGL.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_virgl_osmesa8", "Freedreno", "Freedreno (OpenGL 4.6, 仅高通 adreno616-a660；超出该型号的 Adreno 不可用)", "libOSMesa_8.so", "libEGL.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_vgpu", "VGPU", "VGPU (OpenGL 2.1+)", "libvgpu.so", "libEGL.so", "", "1.16.5", "1.16.5", true, false), new Info("mg", "MobileGlues", "MobileGlues (已内置，无需另装插件；26.3 及以上可用 —— QCL 自动追加 --graphicsBackend vulkan)", "libmobileglues.so", "libEGL.so", "1.17", "26.4", "26.4", false, false)};
+    public static final Info[] ALL = {new Info("ss_gl4es", "Seashore Renderer", "Seashore Renderer (Krypton 基座 + C3F 色块修复；支持所有历史版本含远古，不支持 26.3)", "libss_gl4es.so", "libEGL.so", "", "26.2", "26.2", true, true), new Info("opengles2", "Holy-GL4ES", "Holy GL4ES (OpenGL 2.1)", "libgl4es_114.so", "libEGL.so", "", "1.21.4", "1.21.4", true, false), new Info("ng_gl4es", "Krypton Wrapper", "Krypton Wrapper (OpenGL 3.1+；支持所有历史版本含远古，不支持 26.3)", "libng_gl4es.so", "libEGL.so", "", "26.2", "26.2", true, false), new Info("zink", "Zink", "Kopper Zink (OpenGL 4.6, Mesa zink on Vulkan；26.3+ 唯一有希望的选项，需要设备有可用 Vulkan)", "libglxshim.so", "libEGL_mesa.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_virgl", "VirGLRenderer", "VirGLRenderer (OpenGL 4.3, Mesa 软渲染；上限已放开至 26.4，但真机能否跑 26.3+ 未实测)", "libOSMesa_81.so", "libEGL.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_virgl_osmesa8", "Freedreno", "Freedreno (OpenGL 4.6, 仅高通 adreno616-a660；超出该型号的 Adreno 不可用)", "libOSMesa_8.so", "libEGL.so", "1.8", "26.4", "26.4", true, false), new Info("opengles3_vgpu", "VGPU", "VGPU (OpenGL 2.1+)", "libvgpu.so", "libEGL.so", "", "1.16.5", "1.16.5", true, false), new Info("mg", "MobileGlues", "MobileGlues (已内置，无需另装插件；26.3 及以上可用 —— QCL 自动追加 --graphicsBackend vulkan)", "libmobileglues.so", "libEGL.so", "1.17", "26.4", "26.4", false, false)};
 
     public static String defaultRendererId() {
-        // ★★★ 1.4.9 修正：原来这里返回 "opengles2"（Holy-GL4ES），但
-        //   InitializeSetting:97 写进全局设置的初始值是 "ng_gl4es"（Krypton Wrapper）。
-        //   两处不一致 → 读不到设置时兜底到 Holy-GL4ES、而界面显示 Krypton，
-        //   玩家切了渲染器却"进游戏还是另一个"（表现为切换没生效）。
-        //   现在兜底与初始值保持一致：**Krypton Wrapper**（也是唯一 builtin 且
-        //   「支持所有历史版本含远古」的渲染器，兜底到它最不容易让游戏开不起来）。
-        return "ng_gl4es";
+        // ★ Seashore：默认 = 自家 fork（Krypton 基座 + C3F 色块修复，工单③）。
+        //   与 InitializeSetting 的初始值保持一致（QCL 1.4.9 的教训：两处不一致 = 切换假象）。
+        //   默认 fork 同时根避 §32 坑：切版本回落默认渲染器时落点就是修复版。
+        return "ss_gl4es";
     }
 
     /* loaded from: classes2.dex */
@@ -246,7 +243,7 @@ public final class RendererCompat {
     }
 
     public static String resolveAuto(Context context, boolean z) {
-        return Lwjgl333Helper.isZinkUsable(context) ? "zink" : new File(context.getApplicationInfo().nativeLibraryDir, "libng_gl4es.so").isFile() ? "ng_gl4es" : "opengles2";
+        return new File(context.getApplicationInfo().nativeLibraryDir, "libss_gl4es.so").isFile() ? "ss_gl4es" : Lwjgl333Helper.isZinkUsable(context) ? "zink" : new File(context.getApplicationInfo().nativeLibraryDir, "libng_gl4es.so").isFile() ? "ng_gl4es" : "opengles2";
     }
 
     public static Info find(String str) {
