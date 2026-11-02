@@ -37,8 +37,11 @@ public final class QclFileBridge {
 
     private static final String TAG = "QCL-filebridge";
 
-    /** 信箱目录（与游戏侧的路径必须一致）。 */
-    public static final String DIR = "/sdcard/Seashore/.qcl_bridge";
+    /** 信箱目录（与游戏侧的路径必须一致）。
+     *  ★ Seashore：保持 /sdcard/QCL 原值——游戏侧是预编译 jar（qcl_saves_*.jar，
+     *  MAILBOX 硬编码 /sdcard/QCL/.qcl_bridge），此路径为内部通信协议非品牌面，
+     *  改它 = 断存读档桥（2026-11-02 实测：双向失联 → 等待超时 → qclFillSaves NPE）。 */
+    public static final String DIR = "/sdcard/QCL/.qcl_bridge";
     private static final String REQ = DIR + "/req.txt";
     private static final String RES = DIR + "/res.txt";
 
