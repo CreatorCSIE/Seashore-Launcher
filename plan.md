@@ -35,6 +35,27 @@
 
 **迁移挂账（2026-11-01 落库轮记）**：① `ResConfHack.jar` 需按 `tools/cacio_patch/README.md` ASM 流程重建——补丁类 L335 硬编码 `LevelFileChooserActivity` 旧包名，改名后 indev/infdev 存读档的内置文件浏览器回落系统选择器（catch 分支 fail-open，良性但需补）；② 图标/启动页仍 QCL 资产；③ `assets/announcement.json` 仍是 QCL 公告内容（展示面待换）；④ donate UI 指向未动；⑤ release 签名缺 `qcl.keystore`（Seashore 自建 keystore 随发版轮）；⑥ `ModLoaderVersions` 的加载器元数据端点暂借 QCL 仓（数据通道非品牌，Phase 2 复核）。
 
+## Phase 1.5 · UI 替代调研——FCL 新 UI（2026-11-03 调研落笔，未开工）
+
+**关键纠偏**：FCL 的"新 UI"**不是 Compose**——全仓 viewBinding + XML + 自定义 View（Material 风），Kotlin 2.4.10/AGP 8.13.2/minSdk 26，新代码 Kotlin（协程+StateFlow+Room+ViewModel）与存量 Java 混存。"替代=上 Compose"的前提不成立，替代实质是**换一套更现代的 XML/自定义 View 组件体系**。
+
+**FCL 现状（2026-11）**：仓库=`FCL-Team/FoldCraftLauncher`（不存在 FCL-2/FCL），极活跃（1.3.4.4 发于 11-02，发版节奏几天一版）；许可=纯 GPL-3.0 标准全文（无 Section 7 附加条款）；内嵌 Terracotta=AGPL-3.0（我仓已含同模块，义务面相同）；后端=Amethyst-Android（Pojav 主仓 2025-09 已归档）+ gl4es fork（NG-GL4ES/Krypton，**与我 ss_gl4es 同源**）+ lwjglx + SFPEW——与 QCL 同一技术血统，架构对话成本低。
+
+**血脉**：QCL 现 UI 本就借旧版 FCL（卷宗 §1.1.1）——换新 UI 实质="上游重新同步"，冲突最小路径；公开"FCL UI 移植/换壳"先例未检索到（367 fork 多为二改打包）。
+
+**耦合面**：包层=`com.tungsten.fcl`（页面，ViewModel 直接 import `fclcore.download.*`/`DownloadProviders`，MainActivity.kt 单文件 51KB）/ **`fcllibrary`（组件库 ~50+ 文件：FCLButton/FCLDialog/ThemeEngine/文件浏览器，基本可独立复用）** / `fclcore`（HMCL 移植的下载/版本/账户）/ `fclauncher`（启动/JNI）。页面层与 FCL 数据层强耦合，组件层可拆。
+
+**我方基数**：QCL 模块 526 Java 文件 ~9.4 万行（含逻辑）、140 layout、Kotlin 仅 8 文件；PojavLauncher 模块 29 文件（唯一布局 `activity_pojav.xml`=游戏画面）。**UI 替换必须保留的边界**：PojavMinecraftActivity（Surface/AWT/渲染）、RendererCompat/InitializeSetting/JREUtils 渲染器链、QclFileBridge 信箱桥、FilePicker/Terracotta、TouchInjector 触控层。
+
+**三路径评估**：
+- **(a) 移植 FCL 新 UI 进 QCL 基座（推荐）**：两段走——①引 `fcllibrary` 组件层+ThemeEngine 换视觉语言（按钮/对话框/文件浏览器，改动局部、可逐屏替换）；②主页面（版本选择/设置/下载）按 FCL 新 UI 重绘，需适配层把 FCL 页面的 fclcore 类型依赖映射到我 LaunchVersion/GameLaunchSetting。量级：中大（数百文件），GPL 衍生义务已满足（整仓已 GPL）。
+- **(b) 以 FCL 为壳、移植 Seashore 特性**：javaagent 注入与渲染器插件口都好挂，但"纯远古减法"与 FCL 全能定位相悖（QCL 经验：提上游必被拒），且要自维护 fork 追"几天一版"上游——量大且持续，**不推荐**。
+- **(c) 仅借鉴设计语言自研重建**：零 GPL 纠缠，等于重写 140 layout，量大，**仅作 fallback**。
+
+**风险**：①上游高频=漂移，移植须钉某一 tag 分批搬，不追主线；②商标（FCL 名/图标）不可带走，品牌面继续 Seashore；③minSdk 对齐（FCL=26 vs 我现值）；④ThemeEngine 与现有 QCL 样式资源冲突面；⑤远古实跑力是我方独有强项（FCL 无 legacyfix 机制），UI 替换不得动步骤 4 映射表内化路径。
+
+**决策点（待拍板）**：主路径是否定 (a)；起步取①组件层还是直接②页面重绘；钉版取哪个 tag（候选 1.3.4.4）。
+
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
