@@ -31,7 +31,7 @@
 - **反编译 hashCode switch 不认识新条目**：`JREUtils.getGraphicsLibrary`/`loadGraphicsLibrary` 两处 switch 均无 `ss_gl4es` 分支，漏改会落 default=`libgl4es_114.so`（§31 sizeof 崩溃件）。已各加早退映射；env 别名同理——`ss_gl4es` 复用 `ng_gl4es` 的 Krypton env 分支 + `POJAV_RENDERER` 对齐，防 native 侧收到未知值。
 - **UI 重写 qcl.cfg 会丢 `-Dlf.*` 旗标**（本轮实测）：设置界面保存 cfg 时不保留手工注入的 agent 旗标——映射表内化（步骤 4 主路径）前，预设旗标属易碎面。
 
-**验收**：全新 clone → 一条命令构建安装 → 启动 b1.7.3 阴影三角消失、0618 可进游戏；升级/替换 jar 与 cfg 的路径文档化。**余项**：三版本设备验收已过（b1.7.3/0.0.14a_08/in-20100223，0618 归入阴影三角同窗口面）；全新 clone 一条命令复验 + 路径文档化待补。
+**验收**：全新 clone → 一条命令构建安装 → 启动 b1.7.3 阴影三角消失、0618 可进游戏；升级/替换 jar 与 cfg 的路径文档化。**余项**：三版本设备验收已过（b1.7.3/0.0.14a_08/in-20100223，0618 归入阴影三角同窗口面）；**全新 clone 一条命令复验已过（2026-11-03）**：`build.ps1` 入库（JDK17 探测/SDK 探测+local.properties 自愈/NDK+build-tools 预检/含点参数引号封装/产物定位报告），clone 至 `E:\4k\tmp\ssclone` 一条 `.\build.ps1` 出 `Seashore-debug-0.1.0-x86_64.apk` 220.6MB（BUILD SUCCESSFUL 2m41s），APK 内 `lib/x86_64/libss_gl4es.so` 6.65MB=去品牌件 ✓，clone 工作区除脚本外零未预期缺件 ✓。脚本踩坑三则已固化：**PS5 无 BOM UTF-8 .ps1 按 GBK 解析**（中文串炸语法→存 UTF-8 BOM）、**`$home` 是只读自动变量**（函数参数改名）、**`java -version` 走 stderr**（`ErrorActionPreference=Stop` 下须临时降级）。剩：路径文档化待补。
 
 **迁移挂账（2026-11-01 落库轮记）**：① `ResConfHack.jar` 需按 `tools/cacio_patch/README.md` ASM 流程重建——补丁类 L335 硬编码 `LevelFileChooserActivity` 旧包名，改名后 indev/infdev 存读档的内置文件浏览器回落系统选择器（catch 分支 fail-open，良性但需补）；② 图标/启动页仍 QCL 资产；③ `assets/announcement.json` 仍是 QCL 公告内容（展示面待换）；④ donate UI 指向未动；⑤ release 签名缺 `qcl.keystore`（Seashore 自建 keystore 随发版轮）；⑥ `ModLoaderVersions` 的加载器元数据端点暂借 QCL 仓（数据通道非品牌，Phase 2 复核）。
 
