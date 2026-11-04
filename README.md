@@ -2,7 +2,7 @@
 
 `Seashore Launcher` 是一个**面向 Minecraft 早期历史版本（Pre-Classic、Classic、Indev、Infdev、Alpha、Beta 直至 b1.8 / 1.5.2）的 Android 特化启动器**——在手机上跑官方启动器早已不再提供、桌面端由姊妹项目 Attic 覆盖的那段历史。执行栈继承 [Quanta-Craft-Launcher (QCL)](https://github.com/ALLEN201123/Quanta-Craft-Launcher)（Pojav 后端 + CaciCavallo AWT + 捆绑 OpenJDK 移植 + GL→GLES 转译），以**减法特化**砍掉现代版本支持。
 
-**当前处于 Phase 1 脚手架期**：Phase 0 已收口（2026-10-31）；QCL 1.5.9 基座已落库并完成品牌剥离（2026-11-01），x86_64 调试包构建通过（2026-11-02，`com.seashore.launcher` 0.1.0），真机验证与发布构件待后续。
+**当前处于 Phase 1 收尾 → Phase 1.5 起步**：Phase 0 已收口（2026-10-31）；QCL 1.5.9 基座落库 + 品牌剥离（2026-11-01）、x86_64 调试包构建通过（2026-11-02，`com.seashore.launcher` 0.1.0）；**修复件挂载与设备验收已过**（2026-11-02，emulator-5554 实跑 b1.7.3 阴影三角消失 / 0.0.14a_08 天空无色块 / in-20100223 存读档正常），**全新 clone 一条命令复验已过**（2026-11-03，`.\build.ps1` 直接出包）。**Phase 1.5 UI 替代**（用 FCL 新 UI 组件层换 QCL 旧界面）首批已落库：FCL 1.3.4.4 `fcllibrary` 组件层 252 件 + 资源批移植，编译 + AVD 双验证零启动回归（2026-11-04，commit `edafc71`）。发布构件与品牌图标仍待后续。
 
 名字取自"海岸"：远古版本是被主流潮水留在滩涂上的贝壳，这个项目负责把它们拾回来——与桌面端"阁楼（Attic）"同一收藏观。
 
@@ -35,6 +35,7 @@
 - **渲染三案已取证定罪（§31-§35）**：天空/classic 色块 = gl4es `glInterleavedArrays(GL_C3F_V3F)` 步长上游 typo（`vert=4` 应 3），一行修复已 AVD 终验；阴影三角（0611~b1.7.3）= 游戏预三角化零法线重复顶点，属数据侧修复（映射表 / `-Dlf.gl4esquad`）；间歇崩溃 = listdraw EBO sizeof，Krypton 已修。**"第三方转译天花板"论不成立**。
 - **修复件挂载**：legacyfix fork（`-javaagent`）+ Seashore 映射表方案（表扩双家族）；启动语义与补丁语义解耦——直调主类 + javaagent 直连，不走 launchwrapper（§16）。
 - **UI 与品牌**：布局沿用 FCL 血脉（GPL-3.0 允许，可微调）；名字、图标、包名（`com.qcl.launcher` → Seashore 命名空间）自建。
+- **UI 替代线（Phase 1.5，2026-11-04 起步）**：QCL 现 UI 本就借旧版 FCL，"换新 UI"实质是上游重新同步——采**组件层渐进替换**（非 Compose，FCL 新 UI 仍是 viewBinding + XML + 自定义 View）。首批把 FCL 1.3.4.4 `fcllibrary` 组件层（ThemeEngine/控件/对话框/文件浏览器底座）钉版搬入 `QCL` 模块，包名保持 `com.tungsten.*`（内部标识，cherry-pick 零冲突），仅重写 `R`/`databinding` 两类 import；构建侧 QCL source/target 1.8→11（AGP 7.2.2 的 D8 上限），移植批的现代语法（record / switch 表达式 / `isBlank`）就地降级。页面层与批 2/3 待续。
 
 ---
 
@@ -45,7 +46,8 @@
 | 调研期 | QCL 画像 / 数据层 / AWT 平台税 / 渲染器取证 | ✅ Phase 0 已收口（2026-10-31，纪要 §1-§16）；渲染三案定罪（§31-§35） |
 | 闸门一 | legacyfix `-javaagent` 上 Android 存活面 | ✅ 已闭环：存活面收敛为游戏侧补丁 + 网络代理，渲染层零触碰（§14/§16） |
 | 闸门二 | 减法可行性依赖图审计 | 🔄 转入 Phase 2 |
-| Phase 1 | 基座落库 + 品牌剥离 + x86_64 AVD 脚手架 | 🔄 进行中：QCL 1.5.9 工程主体已迁入（6 模块 + 资产），包名/applicationId/存储路径/名称串已剥离至 Seashore，构建链就位（JDK17 + build-tools 34.0.0 + NDK r27c + wrapper 镜像），**构建通过** `Seashore-debug-0.1.0-x86_64.apk`；装机与修复件挂载验证待做 |
+| Phase 1 | 基座落库 + 品牌剥离 + x86_64 AVD 脚手架 | ✅ 收口（2026-11-03）：QCL 1.5.9 工程主体迁入（6 模块 + 资产），包名/applicationId/存储路径/名称串剥离至 Seashore，构建链就位（JDK17 + build-tools 34.0.0 + NDK r27c + wrapper 镜像）；`.\build.ps1` 一条命令出 `Seashore-debug-0.1.0-x86_64.apk`，**全新 clone 复验已过**；修复件挂载 + 三版本设备验收（b1.7.3 / 0.0.14a_08 / in-20100223）已过。余项：路径文档化待补 |
+| Phase 1.5 | UI 替代——FCL 新 UI 组件层渐进替换 | 🔄 起步（2026-11-04）：调研落笔（决策=组件层路径 a，钉版 FCL 1.3.4.4）；**首批 `fcllibrary` 组件层 252 件 + 资源批已落库**，编译 + AVD 双验证零启动回归（commit `edafc71`）；页面层 / 批 2（FCLActivity/Fragment）/ 批 3（文件浏览器）待续 |
 | Phase 2 | 减法特化（收敛 Pre-Classic → b1.8/1.5.2） | 📋 未开工 |
 | 渲染器 Fork 线 | fork Krypton → 直移 `vert=4→3` → 扩 ABI 内置 | ➡️ 已迁出独立仓 [CreatorCSIE/Seashore-Renderer](https://github.com/CreatorCSIE/Seashore-Renderer)（工单见其 plan.md）；主仓仅留 Phase 1 内置/注册接口 |
 
@@ -106,7 +108,7 @@ git -C reference/<name> checkout -f
 
 ### Q1：现在能装能用吗？
 
-本地可构建、尚未装机验证。x86_64 debug 包已构建通过（Phase 1 步骤 4 的修复件挂载与真机验证完成后才谈"能用"）。
+本地可构建、已在 x86_64 AVD 装机验证。`.\build.ps1` 一条命令出 x86_64 debug 包（全新 clone 复验已过），修复件挂载 + 三版本实跑（b1.7.3 阴影三角消失 / 0.0.14a_08 天空无色块 / in-20100223 存读档正常）均通过。仍为 debug 构建、未发 release 签名包，品牌图标待自建——"能用"指开发台可跑，非正式发布。
 
 ### Q2：和 QCL 什么关系？为什么不直接给 QCL 提 PR？
 
