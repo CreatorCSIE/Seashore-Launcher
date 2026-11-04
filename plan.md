@@ -54,7 +54,30 @@
 
 **风险**：①上游高频=漂移，移植须钉某一 tag 分批搬，不追主线；②商标（FCL 名/图标）不可带走，品牌面继续 Seashore；③minSdk 对齐（FCL=26 vs 我现值）；④ThemeEngine 与现有 QCL 样式资源冲突面；⑤远古实跑力是我方独有强项（FCL 无 legacyfix 机制），UI 替换不得动步骤 4 映射表内化路径。
 
-**决策点（待拍板）**：主路径是否定 (a)；起步取①组件层还是直接②页面重绘；钉版取哪个 tag（候选 1.3.4.4）。
+**决策点（已拍板 2026-11-04）**：主路径=**(a)**；起步=**①组件层**；钉版=**FCL 1.3.4.4**（参考源 `E:\4k\reference\FCL-1.3.4.4`，tarball 解包非 git）。
+
+### 首批执行计划（2026-11-04 开工，依赖面已逐文件核清）
+
+**落点与包名**：全部搬入 `QCL/src/main/java/`，**包名保持 `com.tungsten.*` 不动**（与 `qcl.cfg` 同理=内部标识，cherry-pick 上游零冲突）；仅两类 import 重写：`com.tungsten.fcl.R`→`com.seashore.launcher.R`、`com.tungsten.fcl.databinding.X`→`com.seashore.launcher.databinding.X`（viewBinding 生成类随我模块包名走）。
+
+**① 底座（依赖闭包，逐文件验证过）**：
+- `fclcore/fakefx/**` 整树（~150 文件，实测零外部 `com.tungsten` import=纯叶子）；
+- `fclcore/task`：Task/Schedulers/TaskExecutor/AsyncTaskExecutor/TaskListener/TaskEvent/CompletableFutureTask/TaskCompletableFuture（**跳过** FetchTask/FileDownloadTask/GetTask/DownloadException=拖 HttpRequest）；
+- `fclcore/event`：Event/EventBus/EventManager（跳过具体事件类）；
+- `fclcore/util`：Lang/Logging/InvocationDispatcher/ReflectionHelper/ToStringBuilder/SimpleMultimap/Pair + `function/Exceptional*` 7 件 + `io/IOUtils` + `platform/OperatingSystem`（纯 JDK）；
+- `com/mio/util/ImageUtil.kt`（ThemeEngine 消费；loadInto 用 Glide）。
+
+**② 主题层**：`fcllibrary/component/theme` 三件套（ThemeEngine/ThemeData/ThemePreference）。替身件：`com.tungsten.fcl.FCLApp`（静态 getAppContext/getActivity，QCLApplication 挂 ActivityLifecycleCallbacks 喂当前 Activity）+ `com.tungsten.fclauncher.utils.FCLPath`（stub，仅需 LT/DK_BACKGROUND_PATH→filesDir/background/lt.png|dk.png）。注意：ThemeEngine.isNightMode 读 SP("launcher").themeMode（QCL 现用 uiMode 键）——首批保持源码原样，接线留页面批。
+
+**③ 控件批**：`component/view` 全部 21 件（含 color 子包 ColorPickerView/AlphaPatternDrawable）+ `component/dialog` 6 件 + `component/{FCLAdapter,ResultListener,FCLCheckBoxTreeAdapter,FCLCheckBoxTreeItem}` + `anim/DynamicIslandAnim` + `fcllibrary/util/{ConvertUtils,LocaleUtils}` + `ui/ProgressDialog`。**跳过**：FCLActivity/FCLFragment/ui 子包（页面框架，批 2）、browser 子包（文件浏览器，批 3）、crash 子包（QCL 已有 customactivityoncrash）、LogSharingUtils（拖 HttpRequest）。
+
+**④ 资源批**：attrs.xml 的 16 个 styleable（FCLButton/FCLCheckBox/FCLCheckedTextView/FCLEditText/FCLImageButton/FCLConstraintLayout/FCLImageView/FCLLinearLayout/FCLNumberSeekBar/FCLPreciseSeekBar/FCLRadioButton/FCLSpinner/FCLTabLayout/FCLTextView/FCLView/ColorPickerView）；drawable：fcl_button、ic_baseline_add_24、ic_baseline_remove_24、ic_baseline_arrow_drop_down_24、bg_number_seekbar_track、background_light、background_dark + dialog 布局引用面；layout：item_spinner_dropdown + dialog_edit/dialog_color_picker/dialog_full_edit/dialog_full_image；style：FCLSpinnerPopupAnimation。资源名加 `fcl_` 前缀或直接同名视 QCL 冲突面定（QCL 现有资源先查再放）。
+
+**⑤ 构建配置**（版本钉=Kotlin 1.8.22/AGP 7.2.2 兼容面，勿照抄 FCL 组合）：
+- 根 build.gradle：classpath `org.jetbrains.kotlin:kotlin-serialization:1.8.22`；
+- QCL/build.gradle：`buildFeatures { viewBinding true }`；依赖 `kotlinx-coroutines-android:1.7.1`、`androidx.datastore:datastore:1.0.0`、`kotlinx-serialization-json:1.5.2`、`com.github.bumptech.glide:glide:4.16.0`、`org.glavo:chardet:2.5.0`（IOUtils 的 charset 检测；Logging 只用其 DEFAULT_BUFFER_SIZE 常量）；**viewpager2 批 1 不加**（仅 FCLMultiPageUI 消费=批 2）。仓库走 aliyun central 镜像可解。
+
+**验收**：`.\build.ps1` 出 APK；首批不动任何现有页面（纯增量入库）。**chardet 若镜像解析失败**→降级桩化 IOUtils 的 UniversalDetector 两方法。
 
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 

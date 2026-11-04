@@ -100,4 +100,8 @@
          取值就是主题色 colorAccent 的斑驳森林 #865D58（日夜都成立），保证绝不会渲染成白块。 -->
     <color name="qcl_dialog_btn_fallback">#FF865D58</color>
     <color name="qcl_dialog_btn_text">#FFF2F6FA</color>
+
+    <!-- ★ Phase 1.5 fcllibrary 移植批：FCL 组件层引用的两个底色（随批入库，勿改名）。 -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="dialog_background">#F4F4F4</color>
 </resources>

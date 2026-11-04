@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ★ Phase 1.5 fcllibrary 移植批：控件/对话框层引用的字符串（英文原文照搬 FCL 1.3.4.4，
+     三语本地化随页面批补）。dialog_positive/dialog_negative 复用 QCL 现有定义不重复。 -->
+<resources>
+    <string name="close">Close</string>
+    <string name="edit">Edit</string>
+    <string name="dialog_alert">Alert</string>
+    <string name="dialog_info">Info</string>
+    <string name="color_picker_title">Color Picker</string>
+    <string name="color_picker_arrow" translatable="false">→</string>
+</resources>

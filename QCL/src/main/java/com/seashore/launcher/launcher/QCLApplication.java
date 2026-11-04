@@ -1,7 +1,10 @@
 package com.seashore.launcher.launcher;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.os.Bundle;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Environment;
@@ -9,6 +12,8 @@ import android.os.Process;
 import android.util.Log;
 import com.github.gzuliyujiang.oaid.DeviceIdentifier;
 import com.seashore.launcher.manifest.AppManifest;
+import com.tungsten.fcl.FCLApp;
+import com.tungsten.fclauncher.utils.FCLPath;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
@@ -36,6 +41,32 @@ public class QCLApplication extends Application {
         //   （绕过主界面）时 SETTING_DIR 还是 null → getGameLaunchSetting 读 public_game_setting.json
         //   路径错 → NPE 崩溃。提到这里后任何入口都会先初始化。
         AppManifest.initializeManifest(this);
+        // ★ Phase 1.5：fcllibrary 主题层替身件接线（FCLApp 静态门面 + FCLPath 背景路径）。
+        FCLApp.init(this);
+        FCLPath.init(this);
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                FCLApp.setCurrentActivity(activity);
+            }
+
+            @Override
+            public void onActivityResumed(Activity activity) {
+                FCLApp.setCurrentActivity(activity);
+            }
+
+            @Override
+            public void onActivityDestroyed(Activity activity) {
+                if (FCLApp.getActivity() == activity) {
+                    FCLApp.setCurrentActivity(null);
+                }
+            }
+
+            @Override public void onActivityStarted(Activity activity) { }
+            @Override public void onActivityPaused(Activity activity) { }
+            @Override public void onActivityStopped(Activity activity) { }
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle outState) { }
+        });
         // ★★★ 1.1.1 SDL3：把 C++ 库提前到主线程加载，避免在游戏渲染线程 dlopen 时触发
         // libc++ 的 iostream/locale 静态初始化崩溃（fault addr 0x0）。
         // ★ Seashore：bytehook 的 Java 桥类（com.bytedance.android.bytehook.ByteHook）不在本包（上游 release 同样缺，

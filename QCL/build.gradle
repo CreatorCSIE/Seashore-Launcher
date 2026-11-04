@@ -4,6 +4,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// ★ Phase 1.5：ThemePreference（@Serializable）需要序列化编译器插件；classpath 在根 build.gradle。
+apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
+
 
 
 // 2026-10-25：输出目录改回 QCL/build_alt —— 用户要求新包继续出现在 build_alt
@@ -141,8 +144,16 @@ android {
         jvmTarget = '1.8'
     }
 
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        // ★ Phase 1.5：fcllibrary 移植批含 Java 9+ 语法。AGP 7.2.2 的 D8 只支持到 class 文件 v55(Java 11)，
+        //   17 的 sealed/record 字节码无法 dex，故模块升到 11（try-with-resource-var/isBlank 可用）；
+        //   移植批里的 switch 表达式(14)/record(16) 已就地改写为 11 兼容写法。
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    // ★ Phase 1.5：fcllibrary 移植批的对话框走 viewBinding（生成类包名随本模块 applicationId 走）。
+    buildFeatures {
+        viewBinding true
     }
 
     packagingOptions {
@@ -319,6 +330,14 @@ dependencies {
     implementation 'org.jenkins-ci:constant-pool-scanner:1.2'
     implementation 'com.github.gzu-liyujiang:Android_CN_OAID:4.2.4'
     implementation 'com.github.nedimf:maildroid:v0.1.0-release'
+    // ★ Phase 1.5 fcllibrary 移植批（版本钉=Kotlin 1.8.22/AGP 7.2.2 兼容面，勿照抄 FCL 组合）：
+    //   coroutines=ThemeEngine StateFlow；datastore+serialization=ThemePreference 持久化；
+    //   glide=ImageUtil.loadInto。
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+    implementation 'androidx.datastore:datastore:1.0.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1'
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    // chardet 已降级：org.glavo:chardet 的 jar 在 AGP 7.2.2 D8 下 dex 失败，IOUtils 探测分支改为直读 NATIVE_CHARSET。
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
