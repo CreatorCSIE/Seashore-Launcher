@@ -100,7 +100,9 @@
 ## 后续线（未排期，挂账）
 
 - **账号线·MS 登录 client-id 已备案（2026-10-31，同日换发：旧 id `ae2f1dd0-…` 有问题作废）**：`77b8ff69-e48f-4a72-ae7d-f6fb8490b477`（Seashore 自建 Azure 应用注册）。性质 = 公开构件（Pojav/FCL/HMCL 同款各自内置，非机密）；预期形态 = 公共客户端 device-code / MSAL 流，**不配 client secret**。OAuth 授权 URL 里出现的就是它，后续实现时以本条为准，防错拿别家 id（FCL/Pojav 的 id 混用会踩 Azure 重定向白名单）。Phase 2 L34"MS 登录是否留"调研点就此备好前提件。
-- 键盘输入通道立项（§15：捕获层 / 系统键分流 / IME 字符输入）。
+- 键盘输入通道立项（§15：捕获层 / 系统键分流 / IME 字符输入）。**Phase 3 愿望单**（非 Phase 2 特化主线；如需提前可在 2~3 间补 2.x）。
+  - **lwjglx diff 改判（2026-11-05，以 Amethyst 为准）**：把 `reference/Amethyst-Android`（活体后端谱系，LGPLv3）+ `reference/PojavLauncher`（归档上游）+ `reference/lwjglx`（独立切片，README 自标已过时）与本项目对齐后实锤——LWJGL2 兼容层 = 预编译 `lwjgl-lwjglx.jar`，本项目落 `QCL/src/main/assets/app_runtime/lwjgl333|lwjgl341/jars/`。3.4.1 线 `org/lwjgl/input|opengl` 类清单与 Amethyst **逐条同尺寸**（Keyboard 11116B、Mouse 9493B、InfdevMouse 1000B、EventQueue 1716B…），整包 SHA1 差异只在 glfw 绑定/manifest/时间戳等外围条目。归档 Pojav 是 224KB 旧构建，本项目已对齐 Amethyst 线、不比基准旧/薄。
+  - **结论**：键盘缺口**不在 lwjglx 兼容层**（`org.lwjgl.input.Keyboard` 完整实现 + `InfdevMouse` + `EventQueue` 均在包内，且与 Amethyst 同版）→ **换/升 lwjglx 无意义**。§15 的"真缺"缺在**派发链**：① 下端 native——GLFW/SDL 的 Android 按键事件是否喂进 `Keyboard` 的 `EventQueue`（`GLFWInputImplementation`/native glfw 回调）；② 上端 Activity——`PojavMinecraftActivity` 是否把系统 `onKeyDown/onKeyUp` 派发到 GLFW。工单据此**改查派发链，不动兼容层**。
 - legacyfix fork 发版轮：diff 清点出清测试脚手架（`lf.direct` 已拆）、s3 文件级 handler、a1.1.1 版本门、`lf.qcl` 预设、§14 实现轮总账补记。
 - **阴影三角补丁内化（`-Dlf.gl4esquad` 实现轮；落点 Phase 2 或并入 legacyfix fork 发版轮，2026-11-01 设计定稿）**：
   - **挂载**：`-javaagent:<数据目录>/legacyfix.jar -Dlf.gl4esquad`，与 `lf.iconnoop`/`lf.deawt.disable`/`lf.assetsDir` 同预设面；通道前提已验=Pojav `jre_launcher` 透传 JVM 参数 + QCL cacio-agent 先例（§4）、闸门一 agent 语义存活（§14）、直调主类绕 launchwrapper（§16，避 AlphaVanillaTweaker"假注入成功"陷阱）。
