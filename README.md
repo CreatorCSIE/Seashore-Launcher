@@ -36,6 +36,7 @@
 - **修复件挂载**：legacyfix fork（`-javaagent`）+ Seashore 映射表方案（表扩双家族）；启动语义与补丁语义解耦——直调主类 + javaagent 直连，不走 launchwrapper（§16）。
 - **UI 与品牌**：布局沿用 FCL 血脉（GPL-3.0 允许，可微调）；名字、图标、包名（`com.qcl.launcher` → Seashore 命名空间）自建。
 - **UI 替代线（Phase 1.5，2026-11-04 起步）**：QCL 现 UI 本就借旧版 FCL，"换新 UI"实质是上游重新同步——采**组件层渐进替换**（非 Compose，FCL 新 UI 仍是 viewBinding + XML + 自定义 View）。首批把 FCL 1.3.4.4 `fcllibrary` 组件层（ThemeEngine/控件/对话框/文件浏览器底座）钉版搬入 `QCL` 模块，包名保持 `com.tungsten.*`（内部标识，cherry-pick 零冲突），仅重写 `R`/`databinding` 两类 import；构建侧 QCL source/target 1.8→11（AGP 7.2.2 的 D8 上限），移植批的现代语法（record / switch 表达式 / `isBlank`）就地降级。页面层与批 2/3 待续。
+- **后端谱系备查（2026-11-05）**：Pojav 主仓归档后，[Amethyst-Android](https://github.com/AngelAuraMC/Amethyst-Android)（**LGPLv3**，FCL 后端）为活体继任谱系，已入 `reference/` 备查（不换基座、不并渲染线）。LWJGL2→LWJGL3 兼容层 `lwjglx` 与之对齐实锤：本项目 `lwjgl-lwjglx.jar` 已对齐 Amethyst 线，`org.lwjgl.input.Keyboard` 等完整在包内——**键盘通道缺口不在兼容层，在派发链**（native GLFW/SDL→EventQueue + Activity `onKeyDown`→GLFW），列 Phase 3 愿望单（详见 plan.md）。
 
 ---
 
@@ -75,7 +76,7 @@ Seashore-Launcher
 ├── plan.md                      分阶段计划（Phase 0 收口 / Phase 1 脚手架 / Phase 2 减法 + 渲染器 Fork 线工单）
 ├── research/qcl-android-shell.md 调研纪要卷宗（§1-§36：QCL 画像、数据层、启动链、渲染三案取证定罪、1.5.9 同步判读）
 ├── docs/                        banner 等品牌资产
-├── reference/                   上游源码稀疏检出（QCL / FCL / Pojav / legacyfix / gl4es / NG-GL4ES，gitignore 不入库）
+├── reference/                   上游源码稀疏检出（QCL / FCL / Pojav / Amethyst-Android / lwjglx / legacyfix / gl4es / NG-GL4ES，gitignore 不入库）
 └── build/                       取证判读脚本与构件（gitignore 不入库）
 ```
 
