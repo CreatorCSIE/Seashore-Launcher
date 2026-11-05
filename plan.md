@@ -93,6 +93,41 @@
 
 **余项**：FCLAlertDialog 试点（dialog_alert 已在库，找一处简单 AlertDialog.Builder 替换）；批 2（FCLActivity/FCLFragment 页面框架）/批 3（文件浏览器）照旧。
 
+### UI 对比测试（2026-11-05，FCL 1.3.4.4 原版 APK × AVD 并排）
+
+对照件：`reference/FCL-release-1.3.4.4-x86_64.apk`（sha256 校验过，x86 包 AVD 装不了——abilist 仅 x86_64）；截图素材在 `build/fcl_*.png` vs `build/ss_*.png`。
+
+**排版差异的根因判读**：QCL 1.5.0 的「新排版」（`ui_main_new.xml`+常驻左右栏，`MainActivity.inflateMainUi`/`LauncherSetting.useNewLayout`，默认开）是**对 FCL 新 UI 的手搓模仿**——只借布局骨架，配色体系（背景板 `#C0E3E3E3`、导航深褐条）与控件类全是 QCL 自家；FCL 原版导航 tint=`getColor()`、卡片=ltColor 派生。故主页可见差异（导航配色/皮肤 3D 预览有无/卡片色调/公告弹窗 vs 内嵌卡）皆源于此，**组件试点消不掉排版差**。
+
+**批 2 判读（据此定调）**：
+- 批 2 的靶子=页面框架层（FCLActivity/left_menu/right_menu 原件+设置页接 `ThemeEngine.applyAndSave`），主题一通，最扎眼的导航/卡片配色差异自然收敛；
+- FCL 启动器设置的主题区（主题模式+主/次色×亮暗 4 条取色行=applyColor 四件套的原型 UI，见 `build/fcl_theme.png`）批 2 可直接照搬形态；
+- 真机并存可行：FCL 包名 `com.tungsten.fcl` 与 Seashore 不冲突，同一 AVD 可长期留作对照基准。
+
+### 批 2 执行记录（2026-11-05，页面框架层+主题闭环，已 AVD 验证）
+
+**范围拍板（用户）**：MainActivity 改基类 FCLActivity（框架通电）；主题区进外观设置页。
+
+**入库件**（钉版 tarball `E:\4k\reference\FCL-1.3.4.4`，包名保持 `com.tungsten.*`）：
+- 框架六件套：`fcllibrary/component/FCLActivity.java`（★两处偏离钉版：fileLauncher 字段+实例化注释摘除待批 3；attachBaseContext 直通不包 FCL 语言——QCL 走 SP("lang").lang，FCL 外层包 SP("launcher").lang 会覆盖 QCL 语言选择）、FCLFragment、`component/ui/{FCLBaseUI,FCLCommonUI,FCLPage,FCLMultiPageUI}.java`（原样，零资源依赖）；
+- 依赖补齐：`com/mio/util/DisplayUtil.kt`（原样，仅 display 可空性加安全调用——上游 Kotlin 2.x 宽容、我方 1.8.22 严格）、`com/mio/util/AndroidUtil.kt`（替身：347+ 行杂烩只抽 FCLMultiPageUI 消费的 disableMouseWheelScroll，生成类名 AndroidUtilKt 对齐）、FCLPath stub 补 `loadPaths(Context)` 别名（转调 init）、`QCL/build.gradle` 加 `androidx.viewpager2:viewpager2:1.0.0`。
+
+**MainActivity 改基类三冲突点守卫**（实测零回归）：
+1. `applySavedNightMode` 覆写：themeMode=0 直接 return——保 QCL「现实时间钉配色」特性（FCL 原件会落 FOLLOW_SYSTEM 冲掉 applyRealTimeNightMode）；themeMode≠0 才走 FCL 强制亮/暗；
+2. `DynamicBackground.applyRealTimeNightMode` 加守卫：SP themeMode≠0 时跳过校准（用户意志优先，防异步校准回冲强制模式）；
+3. `onWindowFocusChanged` super 后重申 cutout（基类 applyFullscreen(false) 会把刘海模式压成 NEVER，QCL intent extra 语义优先）。
+- 试点批手工 setupThemeEngine 调用已删（基类 onCreate 首行收编，仍先于 setContentView）。
+
+**外观设置页主题闭环**：`ui_setting_exterior.xml` 新增「FCL 主题」组（主题模式三选=自动（现实时间）/亮/暗 + 主/次色×亮/暗 4 取色行+行重置，形态照搬 FCL LauncherSettingPage，裁「从背景取色」）；`ExteriorSettingUI.setupFclThemeSection()` 接线：模式→SP+setDefaultNightMode+refreshTheme；色块→FCLColorPickerDialog（拖动即时预览 applyColor、确定 applyAndSave 持久化、取消回退）。**ThemeEngine 持久化 API 实名=`applyAndSave/applyAndSave2/applyAndSaveDark/applyAndSave2Dark`**（非 applyAndSaveColor*，首批笔记口径以此为准）。双语 string+array 入 values/values-zh。
+
+**FCLAlertDialog 试点余项**：GameManagerUI 删版本确认框已替换（编译过；**设备实点未验**——需版本管理页长按流程，留批 3 顺带回归）。
+
+**AVD 验证（2026-11-05，截图 build/ss_b2_*.png）**：主页零回归（基类改后不崩不空白）→ 外观页 FCL 主题组渲染+默认值（#7797CF/#000000/#4E77C1）→ 色 Picker 弹出+初始值对 → hex 直填 FFFF6600 确定 → 色块变橙且暗色行不受染 → **force-stop 重启后仍 #FF6600（DataStore 持久化实锤）** → 行重置按钮恢复 #7797CF。踩坑：screencap 回传图 2000×900 是缩放图，**tap 坐标必须用 uiautomator dump 的 bounds（设备 2400×1080），勿按截图目测换算**。
+
+**优先度补线（用户：「FCL 主题的优先度没有改过 QCL 自身的」）**：FCL 色原先只进 ThemeEngine（管 FCL 组件），QCL 全局界面仍由 launcherTheme+ATE+ThemeRefreshUtils 着色，两边不通。补法=`ExteriorSettingUI.pushFclColorToQclTheme(color)`（写入路径与 QCL 自身主题下拉框完全一致：launcherTheme 存档+exteriorConfig+post 刷 ThemeRefreshUtils），两处触发：①`applyFclThemeMode` 尾部按生效模式取主色推一次（1→_getColor/2→getColorDark/0→按当前 uiMode）；②`applyAndSaveFclColor` 中当改动行=当前生效模式主色行（亮 idx0/暗 idx2）时同步推。语义=FCL 优先（FCL 改动双写，QCL 自身选色仅写 QCL，后写者胜）。AVD 实锤：切「暗色」→左栏变 #4E77C1、QCL 预览块 #FF4E77C1；切回「自动」→推 #7797CF；QCL 行重置恢复斑驳森林 #FF865D58（截图 ss_b2p_*.png）。**观察项**：Picker+IME+自动化连打下出现过一次瞬时 ANR（RenderThread prepareTree 风暴、CheckJNI trampoline 高频，push 代码未执行、进程随后 CPU 0%），非本改动引入，批 3 装机回归时留意复现。
+
+**缝合怪路线拍板（2026-11-05，用户：「现状是个缝合怪」→接受中间态按计划推进）**：新旧两套主题链并存=路线 (a) 两段走的固有过渡成本，非缺陷。**终局**=批④页面层收口时 QCL 主题链整体退役（ATE/ThemeRefreshUtils/launcherTheme/外观页 QCL 主题行），ThemeEngine 唯一真相，缝针 `pushFclColorToQclTheme` 与双取色入口届时一并拆除。
+
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
