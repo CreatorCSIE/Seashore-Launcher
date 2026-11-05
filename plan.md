@@ -79,6 +79,20 @@
 
 **验收**：`.\build.ps1` 出 APK；首批不动任何现有页面（纯增量入库）。**chardet 若镜像解析失败**→降级桩化 IOUtils 的 UniversalDetector 两方法。
 
+### 试点批（2026-11-05，实验室页换装=FCL 组件层首消费）
+
+**接线三处（终态）**：① `MainActivity.onCreate` 在 `setContentView` 前调 `ThemeEngine.setupThemeEngine(this)`（等价 FCL 的 FCLActivity 首行约定，必须前置——FCL 控件 inflate 时同步取色）；② `ui_lab.xml` 整页换 `FCLTextView`（auto_text_tint/use_theme_color）+ `FCLLinearLayout` + `FCLImageView`（图标 background→src + auto_src_tint），结构/ID 零变动；③ 页面底色**不接** FCL 主题背景——分层判读：页面底色归 QCL（`launcher_ui_background` 全透明透出 DynamicBackground 壁纸，卡片 `qcl_button_gray` 默认态本就透明、仅按压显淡白，此为 QCL 原始设计），组件取色归 ThemeEngine，各管一层；FCL 背景图留给批 2 的 FCLActivity 统一决策。曾试过卡片 tint=ltColor + 根背景接主题图，观感事故（ltColor 与浅蓝背景图撞色抹平层次、撤主题图后透出夜间壁纸发虚），已回退。
+
+**验证（AVD 全过）**：主界面零回归；亮色=默认蓝灰、暗色（SP `launcher.themeMode=2`）=dk 背景+白字、**换主题色（橙色 theme.json）=整页卡片/副标题/图标即时变色**——组件层"一色表驱动一页"的价值实锤；卡片点击→对话框正常。
+
+**教训两则（页面批适用）**：
+- `LinearLayoutCompat` **不是** `LinearLayout` 子类（直接继承 ViewGroup）——QCL 反编译代码按 `LinearLayout` 强转 findViewById 处，换 FCL 容器即 ClassCastException（本轮装机首崩即此）。页面批移植时同类强转是主要回归面，改按 `View` 持有。
+- ThemeEngine 的 DataStore 实际落盘 = **`filesDir/datastore/theme.json`**（androidx `dataStore` 委托的 produceFile=File(dataDir,"datastore/"+fileName)，**非** `data/datastore/` 也非 dataDir 根）；锁文件读后即删（瞬态，不可作为访问痕迹）；kotlinx JSON 解析失败静默回退默认值（catch SerializationException）。手工造主题文件验证时以此路径为准。
+
+**观感判读**：默认主题色 `#7797CF` 蓝灰与 QCL 原灰白系接近，亮色下观感等价（=替换安全的旁证）；差异在换色/暗色路径才显现。真实闭环待**设置页接 ThemeEngine.applyAndSave**（现 QCL 设置不产 FCL 主题键）。
+
+**余项**：FCLAlertDialog 试点（dialog_alert 已在库，找一处简单 AlertDialog.Builder 替换）；批 2（FCLActivity/FCLFragment 页面框架）/批 3（文件浏览器）照旧。
+
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。

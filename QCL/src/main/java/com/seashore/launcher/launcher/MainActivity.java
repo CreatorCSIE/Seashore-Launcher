@@ -213,6 +213,15 @@ implements View.OnClickListener {
         } catch (Throwable ignoreI18n) {
             // 翻译表加载失败绝不影响启动
         }
+        // ★ Phase 1.5 试点批：FCL ThemeEngine 初始化（幂等；等价 FCL 的
+        //   FCLActivity.onCreate 首行 setupThemeEngine）。必须在 setContentView 之前——
+        //   ui_lab 等布局里挂的 FCL 控件在 inflate 时即 registerEvent，主题就绪才能同步取色。
+        //   内部 runBlocking 读 DataStore 仅首帧一次，后续 Activity 重建直接命中缓存。
+        try {
+            com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().setupThemeEngine(this);
+        } catch (Throwable ignoreTheme) {
+            // 主题初始化失败不能崩主界面（FCL 控件会退回异步注册，取不到色时保持 XML 初值）
+        }
         this.setContentView(R.layout.activity_main);
         this.launcherLayout = (LinearLayout)this.findViewById(R.id.launcher_layout);
         this.init();
