@@ -1258,4 +1258,19 @@ Please add a Microsoft account first.</string>
     <!-- 1.5.8: announcement body folding -->
     <string name="qcl_announcement_expand">Show more</string>
     <string name="qcl_announcement_collapse">Show less</string>
+    <!-- ★ Phase 1.5 批 2：FCL ThemeEngine 主题区（外观设置页） -->
+    <string name="fcl_theme_group_title">FCL Theme</string>
+    <string name="fcl_theme_mode">Theme mode</string>
+    <string name="fcl_theme_mode_auto">Auto (real time)</string>
+    <string name="fcl_theme_mode_light">Light</string>
+    <string name="fcl_theme_mode_dark">Dark</string>
+    <string name="fcl_theme_color">Primary (light)</string>
+    <string name="fcl_theme_color2">Secondary (light)</string>
+    <string name="fcl_theme_color_dark">Primary (dark)</string>
+    <string name="fcl_theme_color2_dark">Secondary (dark)</string>
+    <string-array name="fcl_theme_mode_entries">
+        <item>@string/fcl_theme_mode_auto</item>
+        <item>@string/fcl_theme_mode_light</item>
+        <item>@string/fcl_theme_mode_dark</item>
+    </string-array>
 </resources>

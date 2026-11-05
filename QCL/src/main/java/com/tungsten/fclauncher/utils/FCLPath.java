@@ -14,6 +14,12 @@ public class FCLPath {
     public static String LT_BACKGROUND_PATH;
     public static String DK_BACKGROUND_PATH;
 
+    /** ★ 批 2：FCLActivity.onCreate 按上游约定调 loadPaths（原件=权限就绪后全量初始化路径表）。
+     *  本替身无需权限，转调 init（幂等，QCLApplication 已先行 init 过）。 */
+    public static void loadPaths(Context context) {
+        init(context);
+    }
+
     /** QCLApplication.onCreate 调用（先于任何 ThemeEngine.applyBackground） */
     public static void init(Context context) {
         File dir = new File(context.getFilesDir(), "background");

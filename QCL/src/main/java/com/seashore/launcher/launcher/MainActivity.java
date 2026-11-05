@@ -69,7 +69,10 @@ import com.seashore.launcher.utils.LocaleUtils;
 
 import com.seashore.launcher.R;
 public class MainActivity
-extends AppCompatActivity
+// ★ Phase 1.5 批 2：基类 AppCompatActivity → FCLActivity（页面框架通电：
+//   setupThemeEngine 前置、applyFullscreen、applySavedNightMode、DisplayMetrics 刷新、
+//   onConfigurationChanged 时 ThemeEngine.refreshTheme、权限/Activity 结果回调口）。
+extends com.tungsten.fcllibrary.component.FCLActivity
 implements View.OnClickListener {
     public LinearLayout launcherLayout;
     public boolean isLoaded = false;
@@ -213,18 +216,30 @@ implements View.OnClickListener {
         } catch (Throwable ignoreI18n) {
             // 翻译表加载失败绝不影响启动
         }
-        // ★ Phase 1.5 试点批：FCL ThemeEngine 初始化（幂等；等价 FCL 的
-        //   FCLActivity.onCreate 首行 setupThemeEngine）。必须在 setContentView 之前——
-        //   ui_lab 等布局里挂的 FCL 控件在 inflate 时即 registerEvent，主题就绪才能同步取色。
-        //   内部 runBlocking 读 DataStore 仅首帧一次，后续 Activity 重建直接命中缓存。
-        try {
-            com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().setupThemeEngine(this);
-        } catch (Throwable ignoreTheme) {
-            // 主题初始化失败不能崩主界面（FCL 控件会退回异步注册，取不到色时保持 XML 初值）
-        }
+        // ★ Phase 1.5 批 2：试点批的手工 setupThemeEngine 调用已收编进基类——
+        //   FCLActivity.onCreate 首行即 setupThemeEngine + applyFullscreen，
+        //   本方法 super.onCreate(bundle)（见上）时执行，仍严格先于 setContentView，
+        //   FCL 控件 inflate 同步取色的前置约定不变。
         this.setContentView(R.layout.activity_main);
         this.launcherLayout = (LinearLayout)this.findViewById(R.id.launcher_layout);
         this.init();
+    }
+
+    /**
+     * ★ Phase 1.5 批 2（改基类冲突点一）：FCL 原件在 themeMode=0 时落
+     * MODE_NIGHT_FOLLOW_SYSTEM，会把本 Activity 在 super.onCreate **之前**
+     * 已按现实时间钉好的夜间模式（DynamicBackground.applyRealTimeNightMode，
+     * 2026-10-09 用户拍板的「壁纸/配色跟现实时间走」特性）冲掉。
+     * ⇒ QCL 语义：themeMode=0 = 保持现状（现实时间自动），仅用户显式选
+     * 亮(1)/暗(2) 时才走 FCL 的强制覆盖。
+     */
+    @Override
+    protected void applySavedNightMode() {
+        int themeMode = getSharedPreferences("launcher", MODE_PRIVATE).getInt("themeMode", 0);
+        if (themeMode == 0) {
+            return;
+        }
+        super.applySavedNightMode();
     }
 
     public boolean isValid(String str) {
@@ -809,6 +824,17 @@ implements View.OnClickListener {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             this.getWindow().getDecorView().setSystemUiVisibility(5894);
+            // ★ Phase 1.5 批 2（改基类冲突点二）：基类 FCLActivity.onWindowFocusChanged
+            //   会按 ThemeEngine.fullscreen（默认 false）把刘海模式重申成 NEVER，
+            //   覆盖 init() 里按 intent "fullscreen" extra 设的 SHORT_EDGES。
+            //   QCL 语义优先：super 之后按原逻辑重申（extras 缺失时不碰，防 NPE）。
+            try {
+                if (Build.VERSION.SDK_INT >= 28 && this.getIntent().getExtras() != null) {
+                    this.getWindow().getAttributes().layoutInDisplayCutoutMode =
+                            this.getIntent().getExtras().getBoolean("fullscreen") ? 1 : 2;
+                }
+            } catch (Throwable ignored) {
+            }
         }
     }
 

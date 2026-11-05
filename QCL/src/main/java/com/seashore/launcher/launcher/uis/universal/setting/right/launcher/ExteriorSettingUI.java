@@ -430,8 +430,192 @@ CompoundButton.OnCheckedChangeListener {
             this.layoutOldRadio.setChecked(!layoutIsNew);
         }
         this.refreshColorEditable();
+        // ★ Phase 1.5 批 2：FCL 主题区接线（外观设置页 ui_setting_exterior.xml 新增组）
+        this.setupFclThemeSection();
         if (Build.VERSION.SDK_INT < 28) {
             this.fullscreenSetting.setVisibility(8);
+        }
+    }
+
+    // ===== ★ Phase 1.5 批 2：FCL ThemeEngine 主题区 =====
+    // 形态照搬 FCL LauncherSettingPage 主题区（模式三选 + 主/次色×亮/暗 4 取色行）。
+    // 语义映射：themeMode 0=自动（QCL 现实时间，非 FCL 的跟随系统——MainActivity
+    // 覆写 applySavedNightMode 已保此语义）/ 1=强制亮 / 2=强制暗，存 SP("launcher")。
+    private Spinner fclThemeModeSpinner;
+    private LinearLayout[] fclColorBlocks;
+    private View[] fclColorViews;
+    private TextView[] fclColorTexts;
+
+    private void setupFclThemeSection() {
+        this.fclThemeModeSpinner = (Spinner) this.activity.findViewById(R.id.fcl_spinner_theme_mode);
+        int[] blockIds = new int[]{R.id.fcl_select_color, R.id.fcl_select_color2, R.id.fcl_select_color_dark, R.id.fcl_select_color2_dark};
+        int[] viewIds = new int[]{R.id.fcl_color_view, R.id.fcl_color2_view, R.id.fcl_color_dark_view, R.id.fcl_color2_dark_view};
+        int[] textIds = new int[]{R.id.fcl_color_text, R.id.fcl_color2_text, R.id.fcl_color_dark_text, R.id.fcl_color2_dark_text};
+        int[] resetIds = new int[]{R.id.fcl_reset_color, R.id.fcl_reset_color2, R.id.fcl_reset_color_dark, R.id.fcl_reset_color2_dark};
+        this.fclColorBlocks = new LinearLayout[4];
+        this.fclColorViews = new View[4];
+        this.fclColorTexts = new TextView[4];
+        for (int i = 0; i < 4; ++i) {
+            this.fclColorBlocks[i] = (LinearLayout) this.activity.findViewById(blockIds[i]);
+            this.fclColorViews[i] = this.activity.findViewById(viewIds[i]);
+            this.fclColorTexts[i] = (TextView) this.activity.findViewById(textIds[i]);
+            final int idx = i;
+            this.fclColorBlocks[i].setOnClickListener(v -> this.showFclColorPicker(idx));
+            ((TextView) this.activity.findViewById(resetIds[i])).setOnClickListener(v -> {
+                // 重置=写回 ThemePreference 默认值（0xFF7797CF/0xFF000000/0xFF4E77C1/0xFFFFFFFF）
+                this.applyAndSaveFclColor(idx, this.fclColorDefault(idx));
+                this.refreshFclThemeBlocks();
+            });
+        }
+        int themeMode = this.context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt("themeMode", 0);
+        this.fclThemeModeSpinner.setSelection(themeMode);
+        this.fclThemeModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                ExteriorSettingUI.this.applyFclThemeMode(position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        this.refreshFclThemeBlocks();
+    }
+
+    private void applyFclThemeMode(int themeMode) {
+        this.context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt("themeMode", themeMode).apply();
+        if (themeMode == 0) {
+            // QCL 语义：0=现实时间自动（DynamicBackground 守卫此时放行 themeMode==0）
+            com.seashore.launcher.launcher.uis.main.DynamicBackground.applyRealTimeNightMode(this.activity);
+        } else {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                    themeMode == 1 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
+        }
+        // 刷新已挂载的 FCL 控件取色（configChanges 含 uiMode，亮暗切换不重建 Activity）
+        com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().refreshTheme();
+        // ★ 批 2 补（用户拍板：FCL 主题优先度要高于 QCL 自身）：
+        //   模式切换后把「当前生效模式的主色」推进 QCL 主题链，全局界面跟着换色。
+        com.tungsten.fcllibrary.component.theme.ThemeData t =
+                com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().getTheme();
+        int primary;
+        if (themeMode == 1) {
+            primary = t._getColor();
+        } else if (themeMode == 2) {
+            primary = t.getColorDark();
+        } else {
+            int uiMode = this.context.getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+            primary = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    ? t.getColorDark() : t._getColor();
+        }
+        this.pushFclColorToQclTheme(primary);
+    }
+
+    /**
+     * ★ 批 2 补：FCL 主色 → QCL 主题链（launcherTheme 存档 + ATE + 即时刷新），
+     *   与 QCL 自身主题色下拉框（setupThemeColorSpinner）的写入路径完全一致。
+     */
+    private void pushFclColorToQclTheme(int color) {
+        try {
+            this.activity.launcherSetting.launcherTheme = QclColors.format(color);
+            GsonUtils.saveLauncherSetting(this.activity.launcherSetting,
+                    AppManifest.SETTING_DIR + "/launcher_setting.json");
+            this.activity.exteriorConfig.primaryColor(color);
+            this.activity.exteriorConfig.accentColor(color);
+            this.activity.exteriorConfig.apply((Activity) this.activity);
+            this.applyThemeColorToViews(color);
+            final android.app.Activity act = (android.app.Activity) this.activity;
+            final int c = color;
+            act.getWindow().getDecorView().post(() -> {
+                try {
+                    com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(act, c);
+                } catch (Throwable ignored) {
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private int fclColorRaw(int idx) {
+        com.tungsten.fcllibrary.component.theme.ThemeData t =
+                com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().getTheme();
+        switch (idx) {
+            case 0: return t._getColor();
+            case 1: return t._getColor2();
+            case 2: return t.getColorDark();
+            default: return t.getColor2Dark();
+        }
+    }
+
+    private int fclColorDefault(int idx) {
+        switch (idx) {
+            case 0: return 0xFF7797CF;
+            case 1: return 0xFF000000;
+            case 2: return 0xFF4E77C1;
+            default: return 0xFFFFFFFF;
+        }
+    }
+
+    private void applyFclColor(int idx, int color) {
+        com.tungsten.fcllibrary.component.theme.ThemeEngine e =
+                com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance();
+        switch (idx) {
+            case 0: e.applyColor(color); break;
+            case 1: e.applyColor2(color); break;
+            case 2: e.applyColorDark(color); break;
+            default: e.applyColor2Dark(color); break;
+        }
+    }
+
+    private void applyAndSaveFclColor(int idx, int color) {
+        com.tungsten.fcllibrary.component.theme.ThemeEngine e =
+                com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance();
+        switch (idx) {
+            case 0: e.applyAndSave(this.context, color); break;
+            case 1: e.applyAndSave2(this.context, color); break;
+            case 2: e.applyAndSaveDark(this.context, color); break;
+            default: e.applyAndSave2Dark(this.context, color); break;
+        }
+        // ★ 批 2 补（FCL 优先度高于 QCL）：改的是「当前生效模式的主色行」
+        //   （亮色模式=idx0 / 暗色模式=idx2）时，同步推进 QCL 主题链。
+        int uiMode = this.context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        boolean isNight = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        if (idx == (isNight ? 2 : 0)) {
+            this.pushFclColorToQclTheme(color);
+        }
+    }
+
+    private void showFclColorPicker(final int idx) {
+        final int initColor = this.fclColorRaw(idx);
+        new com.tungsten.fcllibrary.component.dialog.FCLColorPickerDialog(this.context, initColor,
+                new com.tungsten.fcllibrary.component.dialog.FCLColorPickerDialog.Listener() {
+                    @Override
+                    public void onColorChanged(int newColor) {
+                        // 拖动即时预览（不持久化）
+                        ExteriorSettingUI.this.applyFclColor(idx, newColor);
+                    }
+
+                    @Override
+                    public void onPositive(int destColor) {
+                        ExteriorSettingUI.this.applyAndSaveFclColor(idx, destColor);
+                        ExteriorSettingUI.this.refreshFclThemeBlocks();
+                    }
+
+                    @Override
+                    public void onNegative(int color) {
+                        // 取消=回退预览到初始色
+                        ExteriorSettingUI.this.applyFclColor(idx, initColor);
+                    }
+                }).show();
+    }
+
+    private void refreshFclThemeBlocks() {
+        for (int i = 0; i < 4; ++i) {
+            int color = this.fclColorRaw(i);
+            this.fclColorViews[i].setBackgroundColor(color);
+            this.fclColorTexts[i].setText(String.format("#%06X", color & 0xFFFFFF));
         }
     }
 
@@ -481,6 +665,10 @@ CompoundButton.OnCheckedChangeListener {
     @SuppressLint(value={"UseCompatLoadingForDrawables"})
     public void onStart() {
         super.onStart();
+        // ★ 批 2：重进页面时同步 FCL 主题区色块（可能已在实验室页/其他会话改过）
+        if (this.fclColorBlocks != null) {
+            this.refreshFclThemeBlocks();
+        }
         CustomAnimationUtils.showViewFromLeft((View)this.exteriorSettingUI, this.activity, this.context, false);
         if (this.activity.isLoaded) {
             this.activity.uiManager.settingUI.startExteriorSettingUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_white));

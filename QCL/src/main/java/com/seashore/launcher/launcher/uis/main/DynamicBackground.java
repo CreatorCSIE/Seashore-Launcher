@@ -438,6 +438,15 @@ public class DynamicBackground {
      * @return 实际设定到的模式（便于日志排查）
      */
     public static int applyRealTimeNightMode(android.content.Context ctx) {
+        // ★ Phase 1.5 批 2（改基类冲突点三）：用户在 FCL 主题区显式选了亮(1)/暗(2)时，
+        //   现实时间校准不得覆盖强制模式（applySavedNightMode 覆写 + 本守卫共同构成
+        //   themeMode≠0 的「用户意志优先」）；0=自动时照旧走现实时间。
+        int fclThemeMode = ctx.getApplicationContext()
+                .getSharedPreferences("launcher", android.content.Context.MODE_PRIVATE)
+                .getInt("themeMode", 0);
+        if (fclThemeMode != 0) {
+            return androidx.appcompat.app.AppCompatDelegate.getDefaultNightMode();
+        }
         int mode;
         try {
             boolean day = isDaytimeNow();

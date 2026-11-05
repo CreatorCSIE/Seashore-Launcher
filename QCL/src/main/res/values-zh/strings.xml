@@ -1374,4 +1374,19 @@
     <!-- ★ 1.5.8：公告正文折叠 -->
     <string name="qcl_announcement_expand">展开全文</string>
     <string name="qcl_announcement_collapse">收起</string>
+    <!-- ★ Phase 1.5 批 2：FCL ThemeEngine 主题区（外观设置页） -->
+    <string name="fcl_theme_group_title">FCL 主题</string>
+    <string name="fcl_theme_mode">主题模式</string>
+    <string name="fcl_theme_mode_auto">自动（现实时间）</string>
+    <string name="fcl_theme_mode_light">亮色</string>
+    <string name="fcl_theme_mode_dark">暗色</string>
+    <string name="fcl_theme_color">主色（亮色）</string>
+    <string name="fcl_theme_color2">次色（亮色）</string>
+    <string name="fcl_theme_color_dark">主色（暗色）</string>
+    <string name="fcl_theme_color2_dark">次色（暗色）</string>
+    <string-array name="fcl_theme_mode_entries">
+        <item>@string/fcl_theme_mode_auto</item>
+        <item>@string/fcl_theme_mode_light</item>
+        <item>@string/fcl_theme_mode_dark</item>
+    </string-array>
 </resources>

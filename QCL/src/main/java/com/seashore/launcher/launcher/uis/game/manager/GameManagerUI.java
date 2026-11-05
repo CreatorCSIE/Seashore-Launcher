@@ -226,9 +226,10 @@ implements View.OnClickListener {
                         return true;
                     }
                     case R.id.manage_delete_version: {
-                        AlertDialog.Builder deleteAlertBuilder = new AlertDialog.Builder(this.context);
-                        deleteAlertBuilder.setTitle((CharSequence)this.context.getString(R.string.dialog_delete_version_title));
-                        deleteAlertBuilder.setPositiveButton((CharSequence)this.context.getString(R.string.dialog_delete_version_positive), (dialogInterface, i) -> new Thread(() -> {
+                        // ★ Phase 1.5 批 2 试点余项：AlertDialog → FCLAlertDialog（主题化对话框首消费）
+                        com.tungsten.fcllibrary.component.dialog.FCLAlertDialog.Builder deleteAlertBuilder = new com.tungsten.fcllibrary.component.dialog.FCLAlertDialog.Builder(this.context);
+                        deleteAlertBuilder.setTitle(this.context.getString(R.string.dialog_delete_version_title));
+                        deleteAlertBuilder.setPositiveButton(this.context.getString(R.string.dialog_delete_version_positive), () -> new Thread(() -> {
                             FileUtils.deleteDirectory(this.activity.launcherSetting.gameFileDirectory + "/versions/" + this.versionName);
                             this.activity.uiManager.versionListUI.refreshVersionList();
                             if (this.activity.publicGameSetting.currentVersion.equals(this.activity.launcherSetting.gameFileDirectory + "/versions/" + this.versionName) && this.activity.uiManager.versionListUI.gameList.size() > 0) {
@@ -243,7 +244,7 @@ implements View.OnClickListener {
                                 this.activity.uiManager.versionListUI.onStart();
                             });
                         }).start());
-                        deleteAlertBuilder.setNegativeButton((CharSequence)this.context.getString(R.string.dialog_delete_version_negative), (dialogInterface, i) -> {});
+                        deleteAlertBuilder.setNegativeButton(this.context.getString(R.string.dialog_delete_version_negative), () -> {});
                         if (privateGameSetting.gameDirSetting.type == 1) {
                             deleteAlertBuilder.setMessage((CharSequence)this.context.getString(R.string.dialog_delete_version_isolate_msg).replace("%s", this.versionName));
                         } else {

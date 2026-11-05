@@ -518,6 +518,346 @@
 
             </LinearLayout>
 
+            <!-- ★ Phase 1.5 批 2：FCL ThemeEngine 主题区。
+                 形态照搬 FCL LauncherSettingPage 主题区（主题模式 + 主/次色×亮/暗 4 条取色行），
+                 裁掉「从背景取色」两键（QCL 页面底色归壁纸层，无 FCL 背景图可取）。
+                 接线在 ExteriorSettingUI.setupFclThemeSection()。 -->
+            <TextView
+                android:layout_marginTop="15dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/fcl_theme_group_title"
+                android:textSize="@dimen/text_size_middle"
+                android:textColor="@color/colorPureBlack"/>
+
+            <LinearLayout
+                android:layout_marginTop="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/launcher_view_light_gray">
+
+                <LinearLayout
+                    android:padding="15dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:singleLine="true"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fcl_theme_mode"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_middle"
+                        android:layout_gravity="center"/>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <Spinner
+                        android:id="@+id/fcl_spinner_theme_mode"
+                        android:layout_width="130dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/launcher_button_gray"
+                        android:entries="@array/fcl_theme_mode_entries"
+                        android:spinnerMode="dropdown"/>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1px"
+                    android:background="@color/colorDarkGray"/>
+
+                <LinearLayout
+                    android:padding="15dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:singleLine="true"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fcl_theme_color"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_middle"
+                        android:layout_gravity="center"/>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <LinearLayout
+                        android:id="@+id/fcl_select_color"
+                        android:padding="6dp"
+                        android:layout_width="120dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_marginStart="6dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color_view"/>
+
+                        <TextView
+                            android:singleLine="true"
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color_text"
+                            android:textColor="#FFFFFFFF"
+                            android:background="#80000000"
+                            android:textSize="@dimen/text_size_small"
+                            android:gravity="center"/>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/fcl_reset_color"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="8dp"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:text="@string/exterior_setting_ui_reset"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_small"/>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1px"
+                    android:background="@color/colorDarkGray"/>
+
+                <LinearLayout
+                    android:padding="15dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:singleLine="true"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fcl_theme_color2"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_middle"
+                        android:layout_gravity="center"/>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <LinearLayout
+                        android:id="@+id/fcl_select_color2"
+                        android:padding="6dp"
+                        android:layout_width="120dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_marginStart="6dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color2_view"/>
+
+                        <TextView
+                            android:singleLine="true"
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color2_text"
+                            android:textColor="#FFFFFFFF"
+                            android:background="#80000000"
+                            android:textSize="@dimen/text_size_small"
+                            android:gravity="center"/>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/fcl_reset_color2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="8dp"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:text="@string/exterior_setting_ui_reset"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_small"/>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1px"
+                    android:background="@color/colorDarkGray"/>
+
+                <LinearLayout
+                    android:padding="15dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:singleLine="true"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fcl_theme_color_dark"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_middle"
+                        android:layout_gravity="center"/>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <LinearLayout
+                        android:id="@+id/fcl_select_color_dark"
+                        android:padding="6dp"
+                        android:layout_width="120dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_marginStart="6dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color_dark_view"/>
+
+                        <TextView
+                            android:singleLine="true"
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color_dark_text"
+                            android:textColor="#FFFFFFFF"
+                            android:background="#80000000"
+                            android:textSize="@dimen/text_size_small"
+                            android:gravity="center"/>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/fcl_reset_color_dark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="8dp"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:text="@string/exterior_setting_ui_reset"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_small"/>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1px"
+                    android:background="@color/colorDarkGray"/>
+
+                <LinearLayout
+                    android:padding="15dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:singleLine="true"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fcl_theme_color2_dark"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_middle"
+                        android:layout_gravity="center"/>
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+
+                    <LinearLayout
+                        android:id="@+id/fcl_select_color2_dark"
+                        android:padding="6dp"
+                        android:layout_width="120dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_marginStart="6dp"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color2_dark_view"/>
+
+                        <TextView
+                            android:singleLine="true"
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp"
+                            android:id="@+id/fcl_color2_dark_text"
+                            android:textColor="#FFFFFFFF"
+                            android:background="#80000000"
+                            android:textSize="@dimen/text_size_small"
+                            android:gravity="center"/>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/fcl_reset_color2_dark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="8dp"
+                        android:paddingLeft="10dp"
+                        android:paddingRight="10dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/launcher_button_gray"
+                        android:text="@string/exterior_setting_ui_reset"
+                        android:textColor="@color/colorPureBlack"
+                        android:textSize="@dimen/text_size_small"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
             <TextView
                 android:layout_marginTop="15dp"
                 android:layout_width="wrap_content"

@@ -337,6 +337,8 @@ dependencies {
     implementation 'androidx.datastore:datastore:1.0.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1'
     implementation 'com.github.bumptech.glide:glide:4.16.0'
+    // ★ Phase 1.5 批 2：FCLMultiPageUI 内层页面容器（钉版 FCL 用 1.0.0，无更新版依赖面）。
+    implementation 'androidx.viewpager2:viewpager2:1.0.0'
     // chardet 已降级：org.glavo:chardet 的 jar 在 AGP 7.2.2 D8 下 dex 失败，IOUtils 探测分支改为直读 NATIVE_CHARSET。
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
