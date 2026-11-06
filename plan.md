@@ -142,6 +142,25 @@
 
 **AVD 验证（2026-11-06）**：①主页启动零回归（fileLauncher 恢复后 MainActivity.onCreate 不崩，monkey 入口+topResumedActivity 实锤）；②FileBrowserActivity 注册实锤=am start 报 `Permission Denial...not exported`（组件存在，非 does not exist）；③**批 2 遗留 FCLAlertDialog 实点回归闭环**：游戏管理→管理标签（横滑露出，标签行设备 y≈150）→PopupMenu→删除该版本→确认框主题样式正确（圆角卡片+警告标题+主题色按钮）→点「取消」版本目录完好。browser 页 UI 实点=无调用方（批 4 页面接线后一并），本批以注册+零回归为验收面。踩坑：AVD 冷启 boot_completed=1 后 package service 仍需 ~20s 就绪；菜单项 tap 必须 dump-on-open 取 bounds，截图目测换算不可靠。
 
+### 批 4 执行记录（2026-11-06，QCL 主题链退役收口，已 AVD 验证 + FCL 原件视觉 diff）
+
+**范围收口（用户拍板「缝合怪路线」终局兑现）**：QCL 主题链整体退役——ATE 依赖、exteriorConfig、launcherTheme 字段、外观页 QCL 主题下拉行、缝针 `pushFclColorToQclTheme`、双取色入口全拆，ThemeEngine 唯一真相。
+
+**五步落地**：
+1. **砍源**：`QCL/build.gradle` 删 `com.github.naman14:app-theme-engine`；MainActivity 删 ATE/exteriorConfig 字段与三行 apply；LauncherSetting 删 launcherTheme（构造 13→12 参，InitializeSetting 同步）；删 `ThemeColorSpinnerAdapter.java`；`ui_setting_exterior.xml` 删 QCL 主题下拉行+自定义主题色块（面板色块改整行）；
+2. **现实时间亮暗退役**：themeMode=0 回归 FCL 原件 FOLLOW_SYSTEM（系统日落/日出定时）；MainActivity 删 applySavedNightMode 覆写+onCreate 现实时间块；DynamicBackground 删现实时间链整段（fetchNetHour/applyRealTimeNightMode/currentHour 系），autoResId 改 `ThemeEngine.isNightMode(ctx)` 判昼夜（轮播/customFrames 保留）；
+3. **换刷**：ThemeRefreshUtils 新增 `currentThemeColor`（ThemeEngine 色源→?attr/colorAccent 兜底→#865D58）+ `ensureGlobalRecolorHook`（幂等挂 ThemeEngine.addRefreshListener 链尾，对 FCLApp.getActivity() 跑 apply，形成 FCL 改色→QCL 跟色单向链；MainActivity.onCreate 注册）；
+4. **换读色点**：17 文件 launcherTheme/getThemeColor 读点统一 currentThemeColor；SkinDialogUtils tint 参数 String→int；MainUI customTheme() color.json 改 ThemeRefreshUtils.apply；**7 个 adapter 的 exteriorConfig.apply(view) 残留行一并删**（方案清单外发现，不删编译不过）；
+5. **缝针拆除**：pushFclColorToQclTheme 删；applyFclThemeMode 重写=`setDefaultNightMode(0→FOLLOW_SYSTEM/1→NO/2→YES)` + `ThemeEngine.refreshTheme()`。
+
+**文案修正（验证中发现旧口径残留）**：fcl_theme_mode_auto→「自动（跟随系统）」、exterior_setting_ui_bg_default→「默认（自动切换昼夜）」（zh/zh-rTW/en 三处同步）。
+
+**★偏离钉版坑**：FCLApp 替身件在 `com.tungsten.fcl.FCLApp`（非 fcllibrary.component），import 错导致一次构建失败。
+
+**AVD 验证（5+3 项全过，无 ANR——批 2 观察项就此闭环）**：①启动零回归；②外观页只剩 FCL 主题组；③FCL 改色即时跟色（取色盘拖动左栏实时变色+落盘）；④系统深切→黑夜壁纸+暗档主色 #4E77C1 同步；⑤强制亮/暗压系统；⑥新文案两处生效；⑦themeMode SP 落盘=0（自动）；⑧主界面回归截图正常。
+
+**FCL 原件视觉 diff（收口验收，同 AVD 并存 com.tungsten.fcl + 钉版源码核对）**：主题区结构（模式行+主/次色×亮暗 4 取色行）、默认/重置四色（#7797CF/#000000/#4E77C1/#FFFFFF，与 `default_theme_color*` 资源逐一吻合）、themeMode=0 语义、取色器（同类 FCLColorPickerDialog）、持久化 API（applyAndSave×4）**全一致**；三处有意偏离=色块+hex+重置按钮形态（裁原件「从背景取色」图标）、选项措辞 QCL 化（跟随系统→自动（跟随系统））、无行 desc 副文案——均批 2 拍板形态，代码注释在案。
+
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
