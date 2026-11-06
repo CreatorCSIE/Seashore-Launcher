@@ -8,4 +8,58 @@
     <string name="dialog_info">Info</string>
     <string name="color_picker_title">Color Picker</string>
     <string name="color_picker_arrow" translatable="false">→</string>
+
+    <!-- ★ Phase 1.5 批 3：browser 文件浏览器全家桶（英文原文照搬 FCL 1.3.4.4）。
+         file_browser_provider 偏离钉版：原件=com.tungsten.fcl.provider，改指我方 FilePicker 模块
+         已声明的 FileProvider authority（external-path "." 覆盖整个外置存储，分享/打开够用）。 -->
+    <string name="file_browser_provider" translatable="false">com.seashore.launcher.filepicker.provider</string>
+    <string name="file_browser_title">File Browser</string>
+    <string name="file_browser_back">Back</string>
+    <string name="file_browser_close">Exit</string>
+    <string name="file_browser_shared">Shared directory</string>
+    <string name="file_browser_private">Private directory</string>
+    <string name="file_browser_open_external">Open in external APP(Like MT)</string>
+    <string name="file_browser_select_external">Select with external APP</string>
+    <string name="file_browser_private_alert">Cannot access to private directory, please check the permission.</string>
+    <string name="file_browser_mode">Mode:</string>
+    <string name="file_browser_mode_browse">Browse File</string>
+    <string name="file_browser_mode_file">Pick File</string>
+    <string name="file_browser_mode_folder">Pick Folder</string>
+    <string name="file_browser_selection">Type:</string>
+    <string name="file_browser_selection_simple">Single Selection</string>
+    <string name="file_browser_selection_multiple">Multiple Selection</string>
+    <string name="file_browser_positive">Confirm</string>
+    <string name="file_browser_positive_alert">No file/directory selected!</string>
+    <string name="file_browser_share_title">Share the file</string>
+    <string name="file_browser_share_message">Are you sure to share this file?</string>
+    <string name="file_browser_manage">Actions</string>
+    <string name="file_browser_new_folder">New folder</string>
+    <string name="file_browser_new_file">New file</string>
+    <string name="file_browser_rename">Rename</string>
+    <string name="file_browser_delete">Delete</string>
+    <string name="file_browser_copy">Copy</string>
+    <string name="file_browser_cut">Cut</string>
+    <string name="file_browser_paste">Paste</string>
+    <string name="file_browser_share">Share</string>
+    <string name="file_browser_details">Details</string>
+    <string name="file_browser_sort">Sort by</string>
+    <string name="file_browser_sort_name">Name</string>
+    <string name="file_browser_sort_size">Size</string>
+    <string name="file_browser_sort_date">Modified time</string>
+    <string name="file_browser_refresh">Refresh</string>
+    <string name="file_browser_batch">Batch operations</string>
+    <string name="file_browser_select_all">Select all</string>
+    <string name="file_browser_name">Name</string>
+    <string name="file_browser_path">Path</string>
+    <string name="file_browser_type">Type</string>
+    <string name="file_browser_size">Size</string>
+    <string name="file_browser_last_modified">Modified</string>
+    <string name="file_browser_type_file">File</string>
+    <string name="file_browser_type_folder">Folder</string>
+    <string name="file_browser_delete_message">The deleted items cannot be recovered. Continue?</string>
+    <string name="file_browser_invalid_name">Invalid file name.</string>
+    <string name="file_browser_exists">A file with the same name already exists.</string>
+    <string name="file_browser_clipboard_empty">Clipboard is empty.</string>
+    <string name="file_browser_no_selection">No file selected.</string>
+    <string name="file_browser_operation_failed">Operation failed.</string>
 </resources>

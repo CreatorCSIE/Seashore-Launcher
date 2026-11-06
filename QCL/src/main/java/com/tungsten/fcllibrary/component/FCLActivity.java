@@ -22,9 +22,7 @@ import androidx.core.content.ContextCompat;
 
 import com.mio.util.DisplayUtil;
 import com.tungsten.fclauncher.utils.FCLPath;
-// ★ Phase 1.5 批 2 摘除：FileBrowserLauncher 属批 3（browser 全家桶），
-//   原样恢复见下方 fileLauncher 字段注释。
-// import com.tungsten.fcllibrary.browser.FileBrowserLauncher;
+import com.tungsten.fcllibrary.browser.FileBrowserLauncher;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
 import com.tungsten.fcllibrary.util.LocaleUtils;
 
@@ -32,10 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 public class FCLActivity extends AppCompatActivity {
-    // ★ Phase 1.5 批 2 摘除（批 3 恢复）：
-    //   FCL 原件此处为 public FileBrowserLauncher fileLauncher; 并在 onCreate 中实例化。
-    //   该启动器拖 browser 包全家（FileBrowser/FileBrowserActivity/options），属批 3 范围，
-    //   本批先摘；批 3 入库后恢复字段与 `fileLauncher = new FileBrowserLauncher(this);` 一行。
+    public FileBrowserLauncher fileLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
     private ActivityResultLauncher<Intent> activityLauncher;
     private Runnable permissionCallback;
@@ -58,7 +53,7 @@ public class FCLActivity extends AppCompatActivity {
         if (hasPermission) {
             FCLPath.loadPaths(this);
         }
-        // ★ Phase 1.5 批 2 摘除（批 3 恢复）：fileLauncher = new FileBrowserLauncher(this);
+        fileLauncher = new FileBrowserLauncher(this);
         permissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<Map<String, Boolean>>() {
             @Override
             public void onActivityResult(Map<String, Boolean> o) {

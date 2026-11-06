@@ -121,6 +121,13 @@
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode|density|fontScale"
             android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.HelloMinecraftLauncherPocketEdition"/>
+        <!-- ★ Phase 1.5 批 3：FCL browser 文件浏览器（FileBrowserLauncher 的目标页）。
+             原件注册于 FCL Manifest（sensorLandscape + configChanges 含 uiMode，亮暗切换不重建）；
+             此处对齐 QCL 惯例补 density|fontScale，theme 不写=继承 application 默认。 -->
+        <activity
+            android:name="com.tungsten.fcllibrary.browser.FileBrowserActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|keyboard|navigation|uiMode|density|fontScale"
+            android:screenOrientation="sensorLandscape"/>
         <activity
             android:name=".auth.microsoft.MicrosoftLoginActivity"
             android:screenOrientation="sensorLandscape"
