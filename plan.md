@@ -128,6 +128,20 @@
 
 **缝合怪路线拍板（2026-11-05，用户：「现状是个缝合怪」→接受中间态按计划推进）**：新旧两套主题链并存=路线 (a) 两段走的固有过渡成本，非缺陷。**终局**=批④页面层收口时 QCL 主题链整体退役（ATE/ThemeRefreshUtils/launcherTheme/外观页 QCL 主题行），ThemeEngine 唯一真相，缝针 `pushFclColorToQclTheme` 与双取色入口届时一并拆除。
 
+### 批 3 执行记录（2026-11-06，browser 文件浏览器全家桶，已 AVD 验证）
+
+**范围**：钉版 `fcllibrary/browser` 11 件（FileBrowser/FileBrowserActivity/FileBrowserLauncher.kt/FileOperator/FileClipboard.kt/SelectedFile.kt/adapter 2 件/options 3 枚举）+ 依赖闭包 3 件（`com/mio/dialog/ItemSelectionDialog.kt`+`com/mio/ui/DialogCard.kt`+`com/mio/ui/adapter/SpacingItemDecoration.kt`）全量入库，包名 `com.tungsten.*`/`com.mio.*` 不动。资源批：4 布局（activity_file_browser/item_file_browser/dialog_item_selection/item_text，anim_scale 批 1 已有）+3 drawable（clickable_parent/ic_baseline_file_24/ic_baseline_folder_24）+file_browser_* 50 串+provider 串入 fcl_strings.xml。Manifest 注册 FileBrowserActivity（sensorLandscape+configChanges 含 uiMode，对齐 QCL 惯例补 density|fontScale）。批 2 挂钩闭环：FCLActivity fileLauncher 三处（import/字段/实例化）原样恢复。
+
+**★偏离钉版 4 处**（均代码内注释）：
+1. Java 14 switch 表达式×2（FileBrowserActivity.getMode/FileOperator.getComparator）→if/else（我模块 Java 11 上限，AGP 7.2.2 D8）；
+2. provider authority：原件 `getPackageName()+".provider"`+串 `com.tungsten.fcl.provider` →统一改指 FilePicker 模块现成 FileProvider `com.seashore.launcher.filepicker.provider`（provider_paths external-path "." 覆盖整个外置存储，分享/打开够用，不新增 provider）；
+3. `resolve("FCL")`→`resolve("Seashore")`（我方外置根）；
+4. DialogCard 的 core-ktx `String.toColorInt()`→`Color.parseColor`（不新增依赖）。
+
+**依赖盘点结论**：commons-io 经 FilePicker `libs/commons-io-2.11.0.jar` 已在 classpath（RuntimeUtils 先例）；recyclerview 经 viewpager2 传递可用（MaxHeightRecyclerView 先例）；FCLAlertDialog Builder/EditDialog/ResultListener/ThemeEngine(object) API 与 browser 用法逐一吻合，零改动。
+
+**AVD 验证（2026-11-06）**：①主页启动零回归（fileLauncher 恢复后 MainActivity.onCreate 不崩，monkey 入口+topResumedActivity 实锤）；②FileBrowserActivity 注册实锤=am start 报 `Permission Denial...not exported`（组件存在，非 does not exist）；③**批 2 遗留 FCLAlertDialog 实点回归闭环**：游戏管理→管理标签（横滑露出，标签行设备 y≈150）→PopupMenu→删除该版本→确认框主题样式正确（圆角卡片+警告标题+主题色按钮）→点「取消」版本目录完好。browser 页 UI 实点=无调用方（批 4 页面接线后一并），本批以注册+零回归为验收面。踩坑：AVD 冷启 boot_completed=1 后 package service 仍需 ~20s 就绪；菜单项 tap 必须 dump-on-open 取 bounds，截图目测换算不可靠。
+
 ## Phase 2 · 减法特化（大概，需具体调研后细化）
 
 **目标**：砍现代版本支持，收敛 Pre-Classic → b1.8/1.5.2，与 Attic 桌面仓同一非目标。
