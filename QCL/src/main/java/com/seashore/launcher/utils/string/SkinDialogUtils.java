@@ -1,7 +1,6 @@
 package com.seashore.launcher.utils.string;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.Button;
@@ -21,9 +20,12 @@ import androidx.core.graphics.drawable.DrawableCompat;
  *   <li>改用 {@code ?android:attr/colorAccent} 也不行 —— 本项目主题定义的是
  *       AppCompat 的 {@code colorAccent}，framework 那个属性**取不到值** ⇒ 同样白块。</li>
  * </ul>
- * ⇒ 正解就是本类：drawable 只给深色形状，运行时用
- * {@code Color.parseColor(getThemeColor(...))} 把主题色解析出来再
+ * ⇒ 正解就是本类：drawable 只给深色形状，运行时把主题色
  * {@link DrawableCompat#setTint} 上去。
+ *
+ * <p>★ Phase 1.5 批 4：主题色字符串（launcherTheme）退役 ——
+ * 入参从 String 改为 **int 色值**，调用方统一经
+ * {@code ThemeRefreshUtils.currentThemeColor(context)} 取 FCL ThemeEngine 色。
  *
  * <p>★ 文字色固定用 {@code qcl_dialog_btn_text}（日夜都是浅色）——
  * 用户明确要求「按钮转深色，但字不转」。
@@ -34,21 +36,20 @@ public final class SkinDialogUtils {
     }
 
     /**
-     * 把一个按钮染成「深色底 + 浅色字」，底色跟随当前主题色。
+     * 把一个按钮染成「深色底 + 浅色字」，底色跟随传入的主题色。
      *
-     * @param themeColorSetting 玩家在设置里存的主题色字符串（可能为 null / "DEFAULT"）
+     * @param themeColor 当前主题色（int，来自 ThemeEngine；调用方负责取好）
      */
-    public static void tintButton(Context context, Button btn, String themeColorSetting) {
+    public static void tintButton(Context context, Button btn, int themeColor) {
         if (context == null || btn == null) {
             return;
         }
         try {
-            int theme = resolveThemeColor(context, themeColorSetting);
             Drawable bg = btn.getBackground();
             if (bg != null) {
                 // ★ 必须是 CONSTANT 默认状态：按钮处于 pressed/focused 时
                 //   DrawableCompat.setTint 会把 selector 里每个 item 都染一遍。
-                DrawableCompat.setTint(DrawableCompat.wrap(bg.mutate()), theme);
+                DrawableCompat.setTint(DrawableCompat.wrap(bg.mutate()), themeColor);
                 btn.setBackground(DrawableCompat.wrap(bg));
             }
             btn.setTextColor(context.getResources().getColor(R.color.qcl_dialog_btn_text));
@@ -58,35 +59,21 @@ public final class SkinDialogUtils {
     }
 
     /** 批量染一个布局里的所有按钮。 */
-    public static void tintAll(Context context, View root, String themeColorSetting) {
+    public static void tintAll(Context context, View root, int themeColor) {
         if (context == null || root == null) {
             return;
         }
         try {
             if (root instanceof Button) {
-                tintButton(context, (Button) root, themeColorSetting);
+                tintButton(context, (Button) root, themeColor);
             }
             if (root instanceof android.view.ViewGroup) {
                 android.view.ViewGroup g = (android.view.ViewGroup) root;
                 for (int i = 0; i < g.getChildCount(); i++) {
-                    tintAll(context, g.getChildAt(i), themeColorSetting);
+                    tintAll(context, g.getChildAt(i), themeColor);
                 }
             }
         } catch (Throwable ignored) {
-        }
-    }
-
-    /** 解析主题色成 int：非法 / 空值一律回退项目默认的 colorAccent。 */
-    public static int resolveThemeColor(Context context, String themeColorSetting) {
-        int fallback = context.getColor(R.color.colorAccent);
-        if (themeColorSetting == null || "DEFAULT".equals(themeColorSetting)
-                || themeColorSetting.trim().isEmpty()) {
-            return fallback;
-        }
-        try {
-            return Color.parseColor(themeColorSetting.trim());
-        } catch (Throwable ignored) {
-            return fallback;
         }
     }
 }

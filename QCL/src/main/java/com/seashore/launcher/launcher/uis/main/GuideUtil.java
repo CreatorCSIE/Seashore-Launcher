@@ -66,11 +66,9 @@ public final class GuideUtil {
         }
         int accent = 0xFF865D58;
         try {
-            com.seashore.launcher.launcher.MainActivity a =
-                    (com.seashore.launcher.launcher.MainActivity) activity;
-            accent = Color.parseColor(
-                    com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI
-                            .getThemeColor(activity, a.launcherSetting.launcherTheme));
+            // ★ Phase 1.5 批 4：色源从 launcherTheme 改为 ThemeEngine（currentThemeColor 自带兜底）
+            accent = com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                    .currentThemeColor(activity);
         } catch (Throwable ignored) {
         }
         show(activity, accent, Arrays.asList(steps));

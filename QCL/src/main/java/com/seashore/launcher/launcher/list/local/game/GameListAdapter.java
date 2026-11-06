@@ -129,7 +129,7 @@ public class GameListAdapter extends BaseAdapter {
             viewHolder.startGame = (ImageButton) view2.findViewById(R.id.test_game);
             viewHolder.wiki = (ImageButton) view2.findViewById(R.id.version_wiki);
             viewHolder.moreVert = (ImageButton) view2.findViewById(R.id.more_vert);
-            this.activity.exteriorConfig.apply(viewHolder.radioButton);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             view2.setTag(viewHolder);
         } else {
             view2 = view;

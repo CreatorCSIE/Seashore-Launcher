@@ -33,56 +33,8 @@
                 android:orientation="vertical"
                 android:background="@drawable/launcher_view_light_gray">
 
-                <LinearLayout
-                    android:padding="15dp"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:singleLine="true"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/exterior_setting_ui_theme"
-                        android:textColor="@color/colorPureBlack"
-                        android:textSize="@dimen/text_size_middle"
-                        android:layout_gravity="center"/>
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"/>
-
-                    <!-- ★★★ 1.5.0 用户要求：主题色入口改成**下拉框**（原来是"色块+十六进制"小按钮）。
-                         点开列出预设配色，选一个即可全局应用。
-                         ★ id 保留 select_theme（ExteriorSettingUI.onClick 里按它分叉），
-                           改为 Spinner 后由 OnItemSelectedListener 处理选择。 -->
-                    <Spinner
-                        android:id="@+id/select_theme"
-                        android:layout_width="130dp"
-                        android:layout_height="32dp"
-                        android:layout_gravity="center"
-                        android:background="@drawable/launcher_button_gray"
-                        android:spinnerMode="dropdown"/>
-
-                    <!-- ★ 1.5.2 新增：**重置主题色**（玩家换过颜色后一键回默认） -->
-                    <TextView
-                        android:id="@+id/reset_theme_color"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:layout_gravity="center"
-                        android:layout_marginStart="8dp"
-                        android:paddingLeft="10dp"
-                        android:paddingRight="10dp"
-                        android:gravity="center"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:background="@drawable/launcher_button_gray"
-                        android:text="@string/exterior_setting_ui_reset"
-                        android:textColor="@color/colorPureBlack"
-                        android:textSize="@dimen/text_size_small"/>
-
-                </LinearLayout>
+                <!-- ★ Phase 1.5 批 4：「QCL 主题」下拉行（select_theme + reset_theme_color）
+                     已整体删除 —— 主题色唯一入口 = 下方 FCL 主题组（ThemeEngine）。 -->
 
                 <LinearLayout
                     android:padding="15dp"
@@ -152,8 +104,9 @@
 
                 </LinearLayout>
 
-                <!-- ★★★ 1.5.0 用户要求：下拉框**下面显示两个自定义色块**
-                     （主题色色块 + 面板色色块）。点任一个 → 打开调色板自定义。 -->
+                <!-- ★ Phase 1.5 批 4：原「两个自定义色块」中的**主题色色块**
+                     （custom_theme_block + theme_color_view/text）已删除，
+                     面板色色块改为整行。 -->
                 <LinearLayout
                     android:paddingStart="15dp"
                     android:paddingEnd="15dp"
@@ -163,46 +116,11 @@
                     android:orientation="horizontal">
 
                     <LinearLayout
-                        android:id="@+id/custom_theme_block"
-                        android:focusable="true"
-                        android:clickable="true"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="44dp"
-                        android:layout_marginEnd="6dp"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:background="@drawable/launcher_button_gray">
-
-                        <View
-                            android:id="@+id/theme_color_view"
-                            android:layout_width="match_parent"
-                            android:layout_height="0dp"
-                            android:layout_weight="1"
-                            android:layout_margin="4dp"/>
-
-                        <TextView
-                            android:singleLine="true"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:id="@+id/theme_color_text"
-                            android:textColor="#FFFFFFFF"
-                            android:background="#80000000"
-                            android:paddingLeft="4dp"
-                            android:paddingRight="4dp"
-                            android:textSize="@dimen/text_size_small"
-                            android:gravity="center"/>
-
-                    </LinearLayout>
-
-                    <LinearLayout
                         android:id="@+id/custom_panel_block"
                         android:focusable="true"
                         android:clickable="true"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
                         android:layout_height="44dp"
-                        android:layout_marginStart="6dp"
                         android:orientation="vertical"
                         android:gravity="center"
                         android:background="@drawable/launcher_button_gray">
@@ -411,7 +329,7 @@
                 <!-- ★★★ 1.5.0：3D 人物的**动作**选择（用户：「只有走路动作，能不能添加更多」）。
                      · 只在「显示人物模型」打开时才有意义 → Java 侧会跟着显隐这整行。
                      · 5 个动作：站立 / 走路 / 跑步 / 旋转 / 挥手。
-                     · 用 Spinner（与主题色下拉同款，工程里已有 ThemeColorSpinnerAdapter 那套写法）。 -->
+                     · 用 Spinner（工程里 Spinner 那套写法）。 -->
                 <LinearLayout
                     android:id="@+id/account_model_anim_row"
                     android:layout_width="match_parent"
@@ -900,7 +818,7 @@
                     android:id="@+id/select_bg_classic"/>
 
                 <!-- ★ 1.5.0 新增：白天背景（固定显示白天图）。与「黑夜」成对，
-                     上面「默认」则按现实时间在两者之间自动切换。 -->
+                     上面「默认」则按系统亮暗（ThemeEngine 判定）在两者之间自动切换。 -->
                 <RadioButton
                     android:singleLine="true"
                     android:tag="tint_accent_color"

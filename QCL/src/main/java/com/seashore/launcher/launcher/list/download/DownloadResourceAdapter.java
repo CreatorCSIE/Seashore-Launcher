@@ -100,7 +100,8 @@ public class DownloadResourceAdapter extends BaseAdapter {
             viewHolder.favorite = convertView.findViewById(R.id.mod_favorite);
 
             viewHolder.source = convertView.findViewById(R.id.mod_source);
-            activity.exteriorConfig.apply(viewHolder.categories);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
+            //   （列表控件染色由 ThemeRefreshUtils 全局链覆盖）
             convertView.setTag(viewHolder);
         }
         else {

@@ -1,6 +1,7 @@
 package com.seashore.launcher.utils.ui;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -12,6 +13,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import com.seashore.launcher.R;
+// ★ Phase 1.5 批 4：QCL 主题链（ATE + launcherTheme）退役后，
+//   全局唯一色源 = FCL ThemeEngine（fcllibrary 组件层）。
+import com.tungsten.fcl.FCLApp;
+import com.tungsten.fcllibrary.component.theme.ThemeEngine;
 
 /**
  * ★★★★★ 2026-10-17（1.5.2 新增）**改主题色后立即刷新界面，不需要重启**。
@@ -19,7 +24,9 @@ import com.seashore.launcher.R;
  * <p>用户反馈：「主菜单左侧主栏的主题颜色，还必须退出重新登录才行；
  * 而且在『外观』里面改颜色，也必须要退出重新登录，需要修复」。
  *
- * <p>★ 根因：`ExteriorSettingUI` 改主题色时只做了三件事：
+ * <p>★ 根因（历史背景，★ Phase 1.5 批 4 时 ATE/launcherTheme 已整体退役，
+ * 色源统一 ThemeEngine，见下方 currentThemeColor / ensureGlobalRecolorHook）：
+ * 原 `ExteriorSettingUI` 改主题色时只做了三件事：
  * <pre>
  *   activity.launcherSetting.launcherTheme = 新色;
  *   activity.exteriorConfig.primaryColor(新色);
@@ -46,6 +53,59 @@ import com.seashore.launcher.R;
 public final class ThemeRefreshUtils {
 
     private ThemeRefreshUtils() {
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ★ Phase 1.5 批 4：QCL 主题链退役 —— 统一色源 + FCL 改色跟色单向链
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * ★ 批 4：全局唯一取色入口。原 17 处 {@code getThemeColor/parseThemeColorSafe}
+     * 读色点统一改走这里（色源 = FCL ThemeEngine，按 themeMode/系统亮暗自动选亮/暗档）。
+     *
+     * <p>兜底：ThemeEngine 未初始化（如 FCLActivity.onCreate 之前的极早期调用）
+     * 回退主题 {@code ?attr/colorAccent}，再兜底斑驳森林默认色。
+     */
+    public static int currentThemeColor(Context context) {
+        try {
+            return ThemeEngine.getInstance().getTheme().getColor();
+        } catch (Throwable t) {
+            try {
+                android.util.TypedValue tv = new android.util.TypedValue();
+                if (context.getTheme().resolveAttribute(R.attr.colorAccent, tv, true)
+                        && tv.data != 0) {
+                    return tv.data;
+                }
+            } catch (Throwable ignored) {
+            }
+            return 0xFF865D58;
+        }
+    }
+
+    /**
+     * ★ 批 4：把「QCL 原生 UI 全局重染」挂到 ThemeEngine 刷新链尾 ——
+     * FCL 侧任何改色/改亮暗（取色盘、themeMode 切换、系统深色翻转）都会
+     * 经 refreshTheme() 合并到这里，对当前 Activity 跑一遍 {@link #apply}，
+     * 形成 **FCL 改色 → QCL 界面跟色** 的单向链（QCL 侧不再有独立色源）。
+     *
+     * <p>幂等：静态 Runnable 只注册一次（MainActivity recreate 后不重复挂）。
+     */
+    private static boolean globalRecolorHooked = false;
+
+    public static synchronized void ensureGlobalRecolorHook() {
+        if (globalRecolorHooked) {
+            return;
+        }
+        globalRecolorHooked = true;
+        ThemeEngine.getInstance().addRefreshListener(() -> {
+            try {
+                Activity a = FCLApp.getActivity();
+                if (a != null) {
+                    apply(a, ThemeEngine.getInstance().getTheme().getColor());
+                }
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     /**

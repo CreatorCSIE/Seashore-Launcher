@@ -22,8 +22,6 @@
  *  android.widget.TextView
  *  androidx.annotation.NonNull
  *  androidx.appcompat.app.AppCompatActivity
- *  com.afollestad.appthemeengine.ATE
- *  com.afollestad.appthemeengine.Config
  */
 package com.seashore.launcher.launcher;
 
@@ -47,8 +45,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import com.afollestad.appthemeengine.ATE;
-import com.afollestad.appthemeengine.Config;
+// ★ Phase 1.5 批 4：ATE（app-theme-engine）依赖已退役，import 一并摘除。
 import com.seashore.launcher.launcher.VerifyInterface;
 import com.seashore.launcher.launcher.dialogs.VerifyDialog;
 import com.seashore.launcher.launcher.dialogs.account.MicrosoftAccountSkinDialog;
@@ -97,14 +94,14 @@ implements View.OnClickListener {
     public ImageButton closeCurrentUI;
     public RelativeLayout uiContainer;
     public UIManager uiManager;
-    public Config exteriorConfig;
+    // ★ Phase 1.5 批 4：exteriorConfig（ATE 主题定义）已退役 ——
+    //   QCL 原生 UI 染色统一走 ThemeRefreshUtils + ThemeEngine 色源。
     @SuppressLint(value={"HandlerLeak"})
     public final Handler loadingHandler = new Handler(){
 
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             if (msg.what == 0 && !MainActivity.this.isLoaded) {
-                MainActivity.this.exteriorConfig = ATE.config((Context)MainActivity.this, null);
                 MainActivity.this.backBar = (LinearLayout)MainActivity.this.findViewById(R.id.qcl_back_bar);
                 MainActivity.this.backToLastUI = (ImageButton)MainActivity.this.findViewById(R.id.back_to_last_ui);
                 MainActivity.this.currentUIText = (TextView)MainActivity.this.findViewById(R.id.text_current_ui);
@@ -125,28 +122,20 @@ implements View.OnClickListener {
                 //   每个都在 findViewById 找控件；布局还没进去的话全都拿到 null。
                 MainActivity.this.inflateMainUi();
                 MainActivity.this.uiManager = new UIManager((Context)MainActivity.this, MainActivity.this);
-                MainActivity.this.exteriorConfig.primaryColor(ExteriorSettingUI.parseThemeColorSafe((Context)MainActivity.this, MainActivity.this.launcherSetting.launcherTheme));
-                MainActivity.this.exteriorConfig.accentColor(ExteriorSettingUI.parseThemeColorSafe((Context)MainActivity.this, MainActivity.this.launcherSetting.launcherTheme));
-                MainActivity.this.exteriorConfig.apply((Activity)MainActivity.this);
+                // ★ Phase 1.5 批 4：原 exteriorConfig.primaryColor/accentColor/apply 三行已删
+                //   （ATE 退役）。主题定义不复存在，染色见下方 ThemeRefreshUtils.apply。
                 MainActivity.this.isLoaded = true;
                 MainActivity.this.onLoad();
                 ExteriorSettingUI.applyPanelTint((Context)MainActivity.this, MainActivity.this.getWindow().getDecorView(), ExteriorSettingUI.getPanelColor((Context)MainActivity.this, MainActivity.this.launcherSetting.panelColor));
                 // ★★★★★ 1.5.2 修「**必须点进外观页**才会把主题色涂到界面上，否则一直是白的」。
-                //
-                //   ★ 根因：上面 L125~127 只调了 exteriorConfig.apply() —— 那**只改主题定义**，
-                //     已经 inflate 出来的 View 不会重读主题（左栏背景是固定 color 资源，
-                //     按钮 drawable 引用的 ?attr/colorAccent 同理）。
-                //     而 onResume 里那次 ThemeRefreshUtils.apply 又发生在 isLoaded == false 时
-                //     （初始化是异步的，那时 UI 都还没 inflate）⇒ 等于没做。
-                //     于是只有"进一次外观页"才会触发刷新 —— 正是用户描述的现象。
-                //
                 //   ⇒ 在**初始化完成之后**这里补一次真正给 View 上色的调用。
+                //   ★ Phase 1.5 批 4：色源从 launcherSetting.launcherTheme 改为
+                //     ThemeEngine（FCL 主题，按亮暗档自动选色）。
                 try {
-                    int bootThemeColor = ExteriorSettingUI.parseThemeColorSafe(
-                            (Context) MainActivity.this,
-                            MainActivity.this.launcherSetting.launcherTheme);
                     com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(
-                            MainActivity.this, bootThemeColor);
+                            MainActivity.this,
+                            com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                                    .currentThemeColor(MainActivity.this));
                 } catch (Throwable ignored) {
                 }
                 MainActivity.this.startDynamicBackgroundIfNeeded();
@@ -170,7 +159,8 @@ implements View.OnClickListener {
                 }
                 // ★ 1.5.0：这里原来是 MainActivity.this.applyUiTheme();（草方块主题引擎）。
                 //   草方块 UI 已彻底删除，整个 QclThemeUtils 也没了 → 不再需要调用。
-                //   缺省主题的收尾工作现在由 customTheme() / exteriorConfig 负责。
+                //   ★ Phase 1.5 批 4：缺省主题收尾也退役了 —— 色源统一 ThemeEngine，
+                //     上面 apply + 链尾钩子（ensureGlobalRecolorHook）已覆盖。
             }
         }
     };
@@ -189,22 +179,14 @@ implements View.OnClickListener {
         } catch (Throwable ignored) {
             this.lastAppliedUiMode = -1;
         }
-        // ★★★★★ 2026-10-09（用户：「随时间变化的壁纸不准确，下午了还是晚上的壁纸」
-        //   +「主题色也全部改一下」）：把**配色主题**也按现实时间钉住。
-        //   必须在 setContentView 之前设，否则 values-night 会先按系统深色模式加载一遍。
-        //
-        //   ★★ 但**不能只信本地时钟**：实测 MuMu 上设备时钟整整慢 8 小时（epoch 差 28927s），
-        //   本地时钟会把晚上 8 点判成中午 12 点。所以：
-        //     ① 先异步取网络时间（后台线程，不阻塞启动、也不会 NetworkOnMainThread）
-        //     ② 拿到了就按它定色，没拿到才退回本地时钟
-        //   （取回后若判定与初值不同，DynamicBackground.applyAutoDayNight 会再校正一次。）
-        try {
-            com.seashore.launcher.launcher.uis.main.DynamicBackground.refreshHourAsync(null);
-            com.seashore.launcher.launcher.uis.main.DynamicBackground.applyRealTimeNightMode(this);
-        } catch (Throwable ignoreTheme) {
-            // 设不了就按系统来，不能因此崩
-        }
+        // ★ Phase 1.5 批 4：原 2026-10-09「按现实时间钉亮暗」机制整体退役
+        //   （refreshHourAsync + applyRealTimeNightMode 已删）。
+        //   themeMode=0 回归 FCL 原件语义：MODE_NIGHT_FOLLOW_SYSTEM ——
+        //   跟随系统深色模式（系统级按日落/日出定时切换），FCL 自然跟着变。
         super.onCreate(bundle);
+        // ★ Phase 1.5 批 4：把「QCL 原生 UI 全局重染」挂到 ThemeEngine 刷新链尾，
+        //   形成 FCL 改色/改亮暗 → QCL 界面跟色的单向链（幂等，recreate 不重复挂）。
+        com.seashore.launcher.utils.ui.ThemeRefreshUtils.ensureGlobalRecolorHook();
         // ★★★★★ 2026-10-11（用户实测「下载页里的模组一个中文也没有，只有一堆英文原名」）：
         //   在这里**显式**把 Context 交给翻译表并主动预热。
         //   原来只靠 AppGlobals 反射拿 Application 去读 assets，
@@ -225,22 +207,9 @@ implements View.OnClickListener {
         this.init();
     }
 
-    /**
-     * ★ Phase 1.5 批 2（改基类冲突点一）：FCL 原件在 themeMode=0 时落
-     * MODE_NIGHT_FOLLOW_SYSTEM，会把本 Activity 在 super.onCreate **之前**
-     * 已按现实时间钉好的夜间模式（DynamicBackground.applyRealTimeNightMode，
-     * 2026-10-09 用户拍板的「壁纸/配色跟现实时间走」特性）冲掉。
-     * ⇒ QCL 语义：themeMode=0 = 保持现状（现实时间自动），仅用户显式选
-     * 亮(1)/暗(2) 时才走 FCL 的强制覆盖。
-     */
-    @Override
-    protected void applySavedNightMode() {
-        int themeMode = getSharedPreferences("launcher", MODE_PRIVATE).getInt("themeMode", 0);
-        if (themeMode == 0) {
-            return;
-        }
-        super.applySavedNightMode();
-    }
+    // ★ Phase 1.5 批 4：批 2 的 applySavedNightMode 覆写已删除 ——
+    //   它当初只是为了保护「现实时间钉亮暗」不被基类冲掉；该机制退役后，
+    //   FCLActivity 原件语义生效（themeMode=0 → MODE_NIGHT_FOLLOW_SYSTEM）。
 
     public boolean isValid(String str) {
         return true;
@@ -914,18 +883,12 @@ implements View.OnClickListener {
         } catch (Throwable ignored) {
         }
         // ★★★★★ 1.5.2：**让勾选框/开关/进度圈的强调色跟着「主题色」走**。
-        //
-        //   用户反馈：「还有一些勾选颜色的问题，还有一些颜色的问题都没有统一」。
-        //   根因：26 个 CheckBox 都没设 buttonTint，颜色全来自主题 colorAccent，
-        //   而 colorAccent 在 colors.xml 里写死 #556980 —— 玩家换主题色后勾选框不变。
         //   ⇒ 这里在 onResume 用**当前主题色**重刷一遍（和上面的字体颜色同机制，可重复执行）。
+        //   ★ Phase 1.5 批 4：色源从 launcherSetting.launcherTheme 改为 ThemeEngine
+        //     （FCL 主题；批 2 的链尾钩子负责即时跟色，这里兜底回前台场景）。
         try {
-            int themeColor = com.seashore.launcher.utils.QclColors.parseSafeTheme(
-                    this,
-                    com.seashore.launcher.launcher.uis.universal.setting.right.launcher
-                            .ExteriorSettingUI.getThemeColor(this, this.launcherSetting.launcherTheme),
-                    R.color.colorAccent);
-            com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(this, themeColor);
+            com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(this,
+                    com.seashore.launcher.utils.ui.ThemeRefreshUtils.currentThemeColor(this));
         } catch (Throwable ignored) {
         }
         if (SkinPreviewDialog.getInstance() != null) {

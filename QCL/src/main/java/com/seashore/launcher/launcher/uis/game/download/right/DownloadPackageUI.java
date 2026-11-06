@@ -217,9 +217,9 @@ public class DownloadPackageUI extends BaseUI implements View.OnClickListener, A
             this.toggleFilter.setOnClickListener((View.OnClickListener) this);
             try {
                 if (this.toggleFilter instanceof android.widget.TextView) {
-                    int tc = com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI
-                            .parseThemeColorSafe(this.activity,
-                                    this.activity.launcherSetting.launcherTheme);
+                    // ★ Phase 1.5 批 4：色源改 ThemeEngine
+                    int tc = com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                            .currentThemeColor(this.activity);
                     ((android.widget.TextView) this.toggleFilter).setTextColor(tc);
                 }
             } catch (Throwable ignored) {

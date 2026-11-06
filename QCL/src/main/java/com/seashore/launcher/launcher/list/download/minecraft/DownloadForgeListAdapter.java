@@ -72,7 +72,7 @@ public class DownloadForgeListAdapter extends BaseAdapter {
             viewHolder.forgeId = (TextView) view2.findViewById(R.id.id);
             viewHolder.mcVersion = (TextView) view2.findViewById(R.id.type);
             viewHolder.releaseTime = (TextView) view2.findViewById(R.id.release_time);
-            this.activity.exteriorConfig.apply(viewHolder.mcVersion);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             view2.setTag(viewHolder);
         } else {
             view2 = view;

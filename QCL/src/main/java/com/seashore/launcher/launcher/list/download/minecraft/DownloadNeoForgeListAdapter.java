@@ -81,10 +81,7 @@ public class DownloadNeoForgeListAdapter extends BaseAdapter {
             holder.neoId = (TextView) view2.findViewById(R.id.id);
             holder.mcVersion = (TextView) view2.findViewById(R.id.type);
             holder.releaseTime = (TextView) view2.findViewById(R.id.release_time);
-            try {
-                this.activity.exteriorConfig.apply(holder.mcVersion);
-            } catch (Throwable ignored) {
-            }
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             view2.setTag(holder);
         } else {
             view2 = view;

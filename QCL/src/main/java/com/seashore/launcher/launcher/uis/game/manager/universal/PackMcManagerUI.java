@@ -1,7 +1,6 @@
 package com.seashore.launcher.launcher.uis.game.manager.universal;
 
-import static com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI.getThemeColor;
-
+// ★ Phase 1.5 批 4：getThemeColor 静态导入已退役，色源改 ThemeRefreshUtils.currentThemeColor
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -179,7 +178,7 @@ public class PackMcManagerUI extends BaseUI implements View.OnClickListener {
     }
 
     private void init() {
-        int themeColor = Color.parseColor(getThemeColor(context,activity.launcherSetting.launcherTheme));
+        int themeColor = com.seashore.launcher.utils.ui.ThemeRefreshUtils.currentThemeColor(context);
         float[] hsv = new float[3];
         Color.colorToHSV(themeColor, hsv);
         hsv[1] -= (1 - hsv[1]) * 0.3f;

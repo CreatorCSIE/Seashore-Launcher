@@ -1261,7 +1261,8 @@ Please add a Microsoft account first.</string>
     <!-- ★ Phase 1.5 批 2：FCL ThemeEngine 主题区（外观设置页） -->
     <string name="fcl_theme_group_title">FCL Theme</string>
     <string name="fcl_theme_mode">Theme mode</string>
-    <string name="fcl_theme_mode_auto">Auto (real time)</string>
+    <!-- ★ Phase 1.5 批 4：现实时间机制退役，0 档语义 = 跟随系统深色模式（FCL 原件） -->
+    <string name="fcl_theme_mode_auto">Auto (follow system)</string>
     <string name="fcl_theme_mode_light">Light</string>
     <string name="fcl_theme_mode_dark">Dark</string>
     <string name="fcl_theme_color">Primary (light)</string>

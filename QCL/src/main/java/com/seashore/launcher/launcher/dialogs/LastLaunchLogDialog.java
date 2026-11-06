@@ -186,11 +186,12 @@ public final class LastLaunchLogDialog {
         //   它不认识「日志正文」这种要自己配色的控件 —— 一旦被它刷成主题色（白天往往是白字），
         //   叠在我的浅色底上就完全看不见（用户实测的原话：「白底配色加白色字母」）。
         try {
-            android.util.TypedValue tv = new android.util.TypedValue();
-            if (activity.getTheme().resolveAttribute(R.attr.colorAccent, tv, true)
-                    && tv.data != 0 && dialog.getWindow() != null) {
+            // ★ Phase 1.5 批 4：色源从 ?attr/colorAccent 改为 ThemeEngine（currentThemeColor）
+            if (dialog.getWindow() != null) {
                 com.seashore.launcher.utils.ui.ThemeRefreshUtils.applyTo(
-                        dialog.getWindow().getDecorView(), tv.data);
+                        dialog.getWindow().getDecorView(),
+                        com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                                .currentThemeColor(activity));
             }
         } catch (Throwable ignored) {
         }

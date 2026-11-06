@@ -97,7 +97,7 @@ public class ModDependencyAdapter extends BaseAdapter {
             viewHolder.name = view.findViewById(R.id.mod_name);
             viewHolder.categories = view.findViewById(R.id.mod_categories);
             viewHolder.introduction = view.findViewById(R.id.mod_introduction);
-            activity.exteriorConfig.apply(viewHolder.categories);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             view.setTag(viewHolder);
         }
         else {

@@ -92,33 +92,24 @@ implements View.OnClickListener,
 CompoundButton.OnCheckedChangeListener {
     private static final int PICK_BACKGROUND_REQUEST = 4000;
     public LinearLayout exteriorSettingUI;
-    // ★★★ 1.5.0 用户要求：主题色入口从「色块+十六进制小按钮」改为**下拉框**（Spinner）。
-    //   点开列出预设配色，选中即全局应用。下面的两个自定义色块负责进调色板微调。
-    private Spinner selectTheme;
+    // ★ Phase 1.5 批 4：「QCL 主题」下拉框（selectTheme）、自定义主题色块
+    //   （customThemeBlock）、重置主题色按钮（resetThemeColor）及其预览控件
+    //   整体退役 —— 主题色唯一入口 = 下方 FCL 主题组（ThemeEngine）。
 
     // ★★★★★ 2026-10-16 新增：字体颜色自定义调节（外观页）
     private LinearLayout selectFontColor;
     private View fontColorView;
     private TextView fontColorText;
     private Button resetFontColor;
-    /** ★ 1.5.2：重置主题色的按钮（玩家换过颜色后一键回默认）。 */
-    private TextView resetThemeColor;
-    private View colorView;
-    private TextView colorText;
     private LinearLayout selectPanelColor;
     private View panelColorView;
     private TextView panelColorText;
     /** ★ 1.5.2：重置**面板（背景板）色**的按钮。 */
     private TextView resetPanelColor;
-    /** ★ 1.5.0 新增：下拉框下面那两个「自定义色块」（点进去开调色板）。 */
-    private LinearLayout customThemeBlock;
+    /** ★ 1.5.0 新增：「自定义面板色」色块（点进去开调色板）。 */
     private LinearLayout customPanelBlock;
     private View panelColorBlockView;
     private TextView panelColorBlockText;
-    /** ★ 1.5.0：主题色下拉的适配器（预设配色清单）。 */
-    private ThemeColorSpinnerAdapter themeColorAdapter;
-    /** ★ 1.5.0：防止 onItemSelected 在初始化/程序化设值时误触发应用。 */
-    private boolean themeSpinnerReady = false;
     private SwitchCompat fullscreenSwitch;
     private SwitchCompat showAccountModelSwitch;
     private SwitchCompat transBgSwitch;
@@ -156,9 +147,6 @@ CompoundButton.OnCheckedChangeListener {
     public void onCreate() {
         super.onCreate();
         this.exteriorSettingUI = (LinearLayout)this.activity.findViewById(R.id.ui_setting_exterior);
-        this.selectTheme = (Spinner)this.activity.findViewById(R.id.select_theme);
-        this.colorView = this.activity.findViewById(R.id.theme_color_view);
-        this.colorText = (TextView)this.activity.findViewById(R.id.theme_color_text);
         this.selectPanelColor = (LinearLayout)this.activity.findViewById(R.id.select_panel_color);
         this.panelColorView = this.activity.findViewById(R.id.panel_color_view);
         this.panelColorText = (TextView)this.activity.findViewById(R.id.panel_color_text);
@@ -167,8 +155,7 @@ CompoundButton.OnCheckedChangeListener {
         if (this.resetPanelColor != null) {
             this.resetPanelColor.setOnClickListener((View.OnClickListener)this);
         }
-        // ★ 1.5.0：下拉框下方的两个自定义色块
-        this.customThemeBlock = (LinearLayout)this.activity.findViewById(R.id.custom_theme_block);
+        // ★ 1.5.0：自定义面板色块（★ 批 4：自定义主题色块已退役）
         this.customPanelBlock = (LinearLayout)this.activity.findViewById(R.id.custom_panel_block);
         this.panelColorBlockView = this.activity.findViewById(R.id.panel_color_block_view);
         this.panelColorBlockText = (TextView)this.activity.findViewById(R.id.panel_color_block_text);
@@ -185,11 +172,6 @@ CompoundButton.OnCheckedChangeListener {
             this.resetFontColor.setOnClickListener((View.OnClickListener)this);
         }
         refreshFontColorUi();
-        // ★ 1.5.2 新增：**重置主题色**按钮（用户要求：换了颜色后要能一键回默认）
-        this.resetThemeColor = (TextView)this.activity.findViewById(R.id.reset_theme_color);
-        if (this.resetThemeColor != null) {
-            this.resetThemeColor.setOnClickListener((View.OnClickListener)this);
-        }
         // ★ 1.5.2：启动等待界面图片 —— 6 格绑定 + 点击单独换图
         int[] slotIds = new int[]{
                 R.id.wait_bg_0, R.id.wait_bg_1, R.id.wait_bg_2,
@@ -207,7 +189,6 @@ CompoundButton.OnCheckedChangeListener {
             this.resetWaitBg.setOnClickListener((View.OnClickListener) this);
         }
         refreshWaitBgSlots();
-        setupThemeColorSpinner();
         this.fullscreenSwitch = (SwitchCompat)this.activity.findViewById(R.id.switch_full_screen);
         this.showAccountModelSwitch = (SwitchCompat)this.activity.findViewById(R.id.switch_show_account_model);
         this.transBgSwitch = (SwitchCompat)this.activity.findViewById(R.id.switch_transparent_bg);
@@ -314,12 +295,8 @@ CompoundButton.OnCheckedChangeListener {
         }
         this.editBgPath.setText((CharSequence)this.activity.launcherSetting.launcherBackground.path);
         this.editBgUrl.setText((CharSequence)this.activity.launcherSetting.launcherBackground.url);
-        // ★ 1.5.0：selectTheme 已改为 Spinner（由 setupThemeColorSpinner 挂监听），不再走 onClick。
         this.selectPanelColor.setOnClickListener((View.OnClickListener)this);
-        // ★ 1.5.0：下拉框下面两个自定义色块 → 开调色板
-        if (this.customThemeBlock != null) {
-            this.customThemeBlock.setOnClickListener((View.OnClickListener)this);
-        }
+        // ★ 1.5.0：自定义面板色块 → 开调色板（★ 批 4：主题色块已退役）
         if (this.customPanelBlock != null) {
             this.customPanelBlock.setOnClickListener((View.OnClickListener)this);
         }
@@ -439,8 +416,8 @@ CompoundButton.OnCheckedChangeListener {
 
     // ===== ★ Phase 1.5 批 2：FCL ThemeEngine 主题区 =====
     // 形态照搬 FCL LauncherSettingPage 主题区（模式三选 + 主/次色×亮/暗 4 取色行）。
-    // 语义映射：themeMode 0=自动（QCL 现实时间，非 FCL 的跟随系统——MainActivity
-    // 覆写 applySavedNightMode 已保此语义）/ 1=强制亮 / 2=强制暗，存 SP("launcher")。
+    // 语义映射（★ 批 4 收口）：themeMode 0=自动=FCL 原件跟随系统 / 1=强制亮 /
+    // 2=强制暗，存 SP("launcher")。原批 2 的「现实时间」覆写语义已退役。
     private Spinner fclThemeModeSpinner;
     private LinearLayout[] fclColorBlocks;
     private View[] fclColorViews;
@@ -484,57 +461,18 @@ CompoundButton.OnCheckedChangeListener {
 
     private void applyFclThemeMode(int themeMode) {
         this.context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt("themeMode", themeMode).apply();
-        if (themeMode == 0) {
-            // QCL 语义：0=现实时间自动（DynamicBackground 守卫此时放行 themeMode==0）
-            com.seashore.launcher.launcher.uis.main.DynamicBackground.applyRealTimeNightMode(this.activity);
-        } else {
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
-                    themeMode == 1 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
-                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
-        }
+        // ★ Phase 1.5 批 4：0 回归 FCL 原件语义 —— 跟随系统深色模式
+        //   （系统级日落/日出定时切换，FCL/QCL 都自然跟着变）；
+        //   原「现实时间钉亮暗」（applyRealTimeNightMode）已整体退役。
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                themeMode == 0 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                        : themeMode == 1 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                                : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
         // 刷新已挂载的 FCL 控件取色（configChanges 含 uiMode，亮暗切换不重建 Activity）
         com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().refreshTheme();
-        // ★ 批 2 补（用户拍板：FCL 主题优先度要高于 QCL 自身）：
-        //   模式切换后把「当前生效模式的主色」推进 QCL 主题链，全局界面跟着换色。
-        com.tungsten.fcllibrary.component.theme.ThemeData t =
-                com.tungsten.fcllibrary.component.theme.ThemeEngine.getInstance().getTheme();
-        int primary;
-        if (themeMode == 1) {
-            primary = t._getColor();
-        } else if (themeMode == 2) {
-            primary = t.getColorDark();
-        } else {
-            int uiMode = this.context.getResources().getConfiguration().uiMode
-                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-            primary = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                    ? t.getColorDark() : t._getColor();
-        }
-        this.pushFclColorToQclTheme(primary);
-    }
-
-    /**
-     * ★ 批 2 补：FCL 主色 → QCL 主题链（launcherTheme 存档 + ATE + 即时刷新），
-     *   与 QCL 自身主题色下拉框（setupThemeColorSpinner）的写入路径完全一致。
-     */
-    private void pushFclColorToQclTheme(int color) {
-        try {
-            this.activity.launcherSetting.launcherTheme = QclColors.format(color);
-            GsonUtils.saveLauncherSetting(this.activity.launcherSetting,
-                    AppManifest.SETTING_DIR + "/launcher_setting.json");
-            this.activity.exteriorConfig.primaryColor(color);
-            this.activity.exteriorConfig.accentColor(color);
-            this.activity.exteriorConfig.apply((Activity) this.activity);
-            this.applyThemeColorToViews(color);
-            final android.app.Activity act = (android.app.Activity) this.activity;
-            final int c = color;
-            act.getWindow().getDecorView().post(() -> {
-                try {
-                    com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(act, c);
-                } catch (Throwable ignored) {
-                }
-            });
-        } catch (Throwable ignored) {
-        }
+        // ★ 批 4：原「缝针」pushFclColorToQclTheme 已删 —— QCL 原生 UI 跟色
+        //   统一由 ThemeEngine 刷新链尾钩子（ThemeRefreshUtils.ensureGlobalRecolorHook）
+        //   完成；launcherTheme 存档不再被写（色源只有 ThemeEngine 一家）。
     }
 
     private int fclColorRaw(int idx) {
@@ -577,14 +515,9 @@ CompoundButton.OnCheckedChangeListener {
             case 2: e.applyAndSaveDark(this.context, color); break;
             default: e.applyAndSave2Dark(this.context, color); break;
         }
-        // ★ 批 2 补（FCL 优先度高于 QCL）：改的是「当前生效模式的主色行」
-        //   （亮色模式=idx0 / 暗色模式=idx2）时，同步推进 QCL 主题链。
-        int uiMode = this.context.getResources().getConfiguration().uiMode
-                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-        boolean isNight = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        if (idx == (isNight ? 2 : 0)) {
-            this.pushFclColorToQclTheme(color);
-        }
+        // ★ 批 4：原「缝针」pushFclColorToQclTheme 已删 —— applyAndSave* 内部
+        //   会走 updateTheme→notifyThemeChanged→刷新链尾钩子，QCL 原生 UI 自动跟色
+        //   （拖动即时预览同链路，比原来只在确认时推一次更跟手）。
     }
 
     private void showFclColorPicker(final int idx) {
@@ -625,22 +558,13 @@ CompoundButton.OnCheckedChangeListener {
      *   现在固定为「启用 + 不透明」。
      */
     private void refreshColorEditable() {
-        this.setEnabledRecursive((View)this.selectTheme, true);
+        // ★ 批 4：selectTheme/customThemeBlock/colorView/colorText 已退役，只剩面板色
         this.setEnabledRecursive((View)this.selectPanelColor, true);
-        if (this.customThemeBlock != null) {
-            this.setEnabledRecursive((View)this.customThemeBlock, true);
-        }
         if (this.customPanelBlock != null) {
             this.setEnabledRecursive((View)this.customPanelBlock, true);
         }
-        if (this.colorView != null) {
-            this.colorView.setAlpha(1.0f);
-        }
         if (this.panelColorView != null) {
             this.panelColorView.setAlpha(1.0f);
-        }
-        if (this.colorText != null) {
-            this.colorText.setAlpha(1.0f);
         }
         if (this.panelColorText != null) {
             this.panelColorText.setAlpha(1.0f);
@@ -673,8 +597,8 @@ CompoundButton.OnCheckedChangeListener {
         if (this.activity.isLoaded) {
             this.activity.uiManager.settingUI.startExteriorSettingUI.setBackground(this.context.getResources().getDrawable(R.drawable.launcher_button_white));
         }
-        this.colorView.setBackgroundColor(ExteriorSettingUI.parseThemeColorSafe(this.context, this.activity.launcherSetting.launcherTheme));
-        this.colorText.setText((CharSequence)ExteriorSettingUI.getThemeColor(this.context, this.activity.launcherSetting.launcherTheme));
+        // ★ 批 4：主题色预览（colorView/colorText）随 QCL 主题行一起退役，
+        //   FCL 主题区的色块由 refreshFclThemeBlocks() 负责同步。
         int pc = ExteriorSettingUI.getPanelColor(this.context, this.activity.launcherSetting.panelColor);
         this.panelColorView.setBackgroundColor(pc);
         this.panelColorText.setText((CharSequence)(QclColors.format(pc)));
@@ -865,30 +789,9 @@ CompoundButton.OnCheckedChangeListener {
         }
     }
 
-    /**
-     * 主题色字符串 —— 读取侧已加固：null / 空 / DEFAULT / 历史非法值（如未补零的 "#ff"）
-     * 一律回退为合法的默认强调色串，绝不再把非法值抛给 Color.parseColor。
-     * （真机 OPPO PDVM00 曾因存档里 "#ff" 这类值在启动期 parseColor 崩溃。）
-     */
-    public static String getThemeColor(Context context, String color2) {
-        int fallback = context.getColor(R.color.colorAccent);
-        if (color2 == null || "DEFAULT".equals(color2) || color2.trim().isEmpty()) {
-            return QclColors.format(fallback);
-        }
-        String s = color2.trim();
-        try {
-            Color.parseColor(s);
-            return s;
-        } catch (Throwable t) {
-            android.util.Log.w("jrelog", "[颜色] 主题色非法值已回退: " + s);
-            return QclColors.format(fallback);
-        }
-    }
-
-    /** 主题色 → int，安全解析（启动期着色用，绝不抛异常）。 */
-    public static int parseThemeColorSafe(Context context, String color2) {
-        return QclColors.parseSafeTheme(context, getThemeColor(context, color2), R.color.colorAccent);
-    }
+    // ★ Phase 1.5 批 4：getThemeColor / parseThemeColorSafe 已退役 ——
+    //   原 17 处读色点统一改走 ThemeRefreshUtils.currentThemeColor(Context)
+    //   （色源 = FCL ThemeEngine，自带亮暗档自适应与非法值兜底）。
 
     public static boolean isImageFile(String filePath) {
         BitmapFactory.Options options = new BitmapFactory.Options();
@@ -897,81 +800,8 @@ CompoundButton.OnCheckedChangeListener {
         return options.outWidth != -1;
     }
 
-    /**
-     * ★★★ 1.5.0：主题色下拉框（用户要求「最上面是颜色的下拉框」）。
-     *
-     * <p>预设配色清单 —— 全部是"在深浅底上都能看清"的稳色，第一项是默认（斑驳森林色）。
-     * 选中某一项 → 立刻应用 + 存档（与原来调色板 onPositive 的行为一致）。
-     * 想要任意颜色 → 点下面的「自定义」色块开调色板。
-     */
-    private void setupThemeColorSpinner() {
-        if (this.selectTheme == null) {
-            return;
-        }
-        try {
-            this.themeColorAdapter = new ThemeColorSpinnerAdapter(this.context);
-            this.selectTheme.setAdapter(this.themeColorAdapter);
-            // 定位到当前已选中的预设（找不到则不设，避免误触发）
-            String cur = ExteriorSettingUI.getThemeColor(this.context, this.activity.launcherSetting.launcherTheme);
-            int pos = this.themeColorAdapter.indexOfColor(cur);
-            this.selectTheme.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    // ★ 初始化阶段（程序化 setSelection）不触发应用，否则一进页面就会把
-                    //   玩家存档里的自定义色覆盖成第一个预设。
-                    if (!ExteriorSettingUI.this.themeSpinnerReady) {
-                        return;
-                    }
-                    int color = ExteriorSettingUI.this.themeColorAdapter.colorAt(position);
-                    ExteriorSettingUI.this.activity.launcherSetting.launcherTheme = QclColors.format(color);
-                    GsonUtils.saveLauncherSetting(ExteriorSettingUI.this.activity.launcherSetting,
-                            AppManifest.SETTING_DIR + "/launcher_setting.json");
-                    ExteriorSettingUI.this.activity.exteriorConfig.primaryColor(color);
-                    ExteriorSettingUI.this.activity.exteriorConfig.accentColor(color);
-                    ExteriorSettingUI.this.activity.exteriorConfig.apply((Activity)ExteriorSettingUI.this.activity);
-                    ExteriorSettingUI.this.applyThemeColorToViews(color);
-                    // ★★★★★ 1.5.2 修「改主题色必须退出重进才生效 / 左侧栏要重进外观页才变色」：
-                    //   exteriorConfig.apply() 只改**主题定义**，已 inflate 的 View 不会重读；
-                    //   而且 apply() 之后可能还有一次异步的主题应用会把我们刚设的背景盖掉。
-                    //   ⇒ 用 **post 延迟一帧**再刷，确保排在 apply 之后，且只刷新已存在的 View。
-                    final android.app.Activity act = (android.app.Activity) ExteriorSettingUI.this.activity;
-                    final int newColor = color;
-                    try {
-                        act.getWindow().getDecorView().post(() -> {
-                            try {
-                                com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(act, newColor);
-                            } catch (Throwable ignored) {
-                            }
-                        });
-                    } catch (Throwable ignored) {
-                    }
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-            if (pos >= 0) {
-                this.selectTheme.setSelection(pos);
-            }
-            // 设完初值才放开：后续玩家手选才会真正应用
-            this.selectTheme.post(() -> ExteriorSettingUI.this.themeSpinnerReady = true);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    /** 主题色变化后，把新色刷到那两个预览色块上（右侧小按钮 + 下拉框下方的大色块）。 */
-    private void applyThemeColorToViews(int color) {
-        if (this.colorView != null) {
-            this.colorView.setBackgroundColor(color);
-        }
-        if (this.colorText != null) {
-            this.colorText.setText(QclColors.format(color));
-        }
-        // ★ 注：下拉框下方的第一个"自定义色块"本身就是调色板的入口（无独立预览 View），
-        //   第二个色块是面板色，与主题色无关 —— 所以这里只需刷右侧那两个预览。
-    }
+    // ★ Phase 1.5 批 4：setupThemeColorSpinner / applyThemeColorToViews 已退役 ——
+    //   「QCL 主题」下拉行整体删除，主题色唯一入口 = FCL 主题组（setupFclThemeSection）。
 
     /** 面板色变化后，刷到下方那个自定义面板色块。 */
     private void applyPanelColorToBlock(int color) {
@@ -985,67 +815,8 @@ CompoundButton.OnCheckedChangeListener {
 
     public void onClick(View v) {
         ColorSelectorDialog dialog;
-        if (v == this.customThemeBlock) {
-            // ★ 1.5.0：主题色调色板改由**下拉框下方的第一个自定义色块**触发
-            //   （selectTheme 本身已是 Spinner，预设在 setupThemeColorSpinner 里处理）。
-            dialog = new ColorSelectorDialog(this.context, true, ExteriorSettingUI.parseThemeColorSafe(this.context, this.activity.launcherSetting.launcherTheme));
-            dialog.setColorSelectorDialogListener(new ColorSelectorDialog.ColorSelectorDialogListener(){
-
-                @Override
-                @SuppressLint(value={"SetTextI18n"})
-                public void onColorSelected(int color2) {
-                    ExteriorSettingUI.this.activity.exteriorConfig.primaryColor(color2);
-                    ExteriorSettingUI.this.activity.exteriorConfig.accentColor(color2);
-                    ExteriorSettingUI.this.activity.exteriorConfig.apply((Activity)ExteriorSettingUI.this.activity);
-                    ExteriorSettingUI.this.applyThemeColorToViews(color2);
-                }
-
-                @Override
-                @SuppressLint(value={"SetTextI18n"})
-                public void onPositive(int destColor) {
-                    ExteriorSettingUI.this.activity.launcherSetting.launcherTheme = QclColors.format(destColor);
-                    GsonUtils.saveLauncherSetting(ExteriorSettingUI.this.activity.launcherSetting, AppManifest.SETTING_DIR + "/launcher_setting.json");
-                    ExteriorSettingUI.this.activity.exteriorConfig.primaryColor(destColor);
-                    ExteriorSettingUI.this.activity.exteriorConfig.accentColor(destColor);
-                    ExteriorSettingUI.this.activity.exteriorConfig.apply((Activity)ExteriorSettingUI.this.activity);
-                    ExteriorSettingUI.this.applyThemeColorToViews(destColor);
-                    // ★ 1.5.2：自定义颜色同样要**立即生效**，不能等重启
-                    try {
-                        {
-                            final android.app.Activity _act = (android.app.Activity) ExteriorSettingUI.this.activity;
-                            final int _c = destColor;
-                            _act.getWindow().getDecorView().post(() -> {
-                                try { com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(_act, _c); }
-                                catch (Throwable ignored) { }
-                            });
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                }
-
-                @Override
-                @SuppressLint(value={"SetTextI18n"})
-                public void onNegative(int initColor) {
-                    ExteriorSettingUI.this.activity.exteriorConfig.primaryColor(initColor);
-                    ExteriorSettingUI.this.activity.exteriorConfig.accentColor(initColor);
-                    ExteriorSettingUI.this.activity.exteriorConfig.apply((Activity)ExteriorSettingUI.this.activity);
-                    ExteriorSettingUI.this.applyThemeColorToViews(initColor);
-                    // ★ 1.5.2：取消（回滚颜色）时也要把界面刷回去
-                    try {
-                        {
-                            final android.app.Activity _act = (android.app.Activity) ExteriorSettingUI.this.activity;
-                            final int _c = initColor;
-                            _act.getWindow().getDecorView().post(() -> {
-                                try { com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(_act, _c); }
-                                catch (Throwable ignored) { }
-                            });
-                        }
-                    } catch (Throwable ignored) {
-                    }
-                }
-            });
-            dialog.show();
-        }
+        // ★ Phase 1.5 批 4：customThemeBlock（自定义主题色块）整条分支已退役
+        //   —— 主题色入口只剩 FCL 主题组；调色板即时预览走 ThemeEngine 刷新链。
         // ★★★★★ 2026-10-16 新增：**字体颜色自定义调节**
         //   （用户要求「在外观那里加一个字体颜色自定义调节功能」）。
         //
@@ -1082,10 +853,6 @@ CompoundButton.OnCheckedChangeListener {
             });
             dialog.show();
         }
-        // ★★★★★ 1.5.2 新增：**重置主题色**。
-        //   用户要求：「还没有重置颜色按钮……玩家换了颜色没有重置按钮」。
-        //   做法：把 launcherTheme 置 null（= 跟随内置默认 colorAccent），
-        //   然后把默认色立即刷回界面（含左侧导航栏），最后把下拉框同步回默认项。
         // ★ 1.5.2：等待界面 6 格图片 → 恢复默认（全部清空，回内置图）
         if (v == this.resetWaitBg) {
             this.activity.launcherSetting.waitBgPaths = new String[WAIT_BG_SLOTS];
@@ -1094,35 +861,8 @@ CompoundButton.OnCheckedChangeListener {
             refreshWaitBgSlots();
             Toast.makeText(this.context, "等待界面图片已恢复默认", Toast.LENGTH_SHORT).show();
         }
-        if (v == this.resetThemeColor) {            try {
-                this.activity.launcherSetting.launcherTheme = null;
-                GsonUtils.saveLauncherSetting(this.activity.launcherSetting,
-                        AppManifest.SETTING_DIR + "/launcher_setting.json");
-                int def = this.context.getResources().getColor(R.color.colorAccent);
-                this.activity.exteriorConfig.primaryColor(def);
-                this.activity.exteriorConfig.accentColor(def);
-                this.activity.exteriorConfig.apply((Activity) this.activity);
-                this.applyThemeColorToViews(def);
-                {
-                        final android.app.Activity _act = (android.app.Activity) this.activity;
-                        final int _c = def;
-                        _act.getWindow().getDecorView().post(() -> {
-                            try { com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(_act, _c); }
-                            catch (Throwable ignored) { }
-                        });
-                    }
-                // 下拉框同步回默认项（初始化标志先置 false，避免又被当成"玩家选择"）
-                try {
-                    this.themeSpinnerReady = false;
-                    this.setupThemeColorSpinner();
-                    this.themeSpinnerReady = true;
-                } catch (Throwable ignored) {
-                }
-                Toast.makeText(this.context, "主题色已恢复默认",
-                        Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {
-            }
-        }
+        // ★ Phase 1.5 批 4：resetThemeColor（重置主题色）分支已退役 ——
+        //   主题色重置由 FCL 主题组每行的重置按钮（fclColorDefault）负责。
         if (v == this.resetFontColor) {
             this.activity.launcherSetting.fontColor = null;   // null = 跟随主题
             GsonUtils.saveLauncherSetting(this.activity.launcherSetting, AppManifest.SETTING_DIR + "/launcher_setting.json");

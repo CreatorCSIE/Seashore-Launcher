@@ -802,7 +802,8 @@
     <string name="exterior_setting_ui_layout_restart">重启启动器后新排版才会生效</string>
     <string name="exterior_setting_ui_full_screen">忽略刘海屏</string>
     <string name="exterior_setting_ui_bg_title">背景地址</string>
-    <string name="exterior_setting_ui_bg_default">默认（按时间自动切换昼夜）</string>
+    <!-- ★ Phase 1.5 批 4：昼夜判定改跟随系统亮暗（原「按时间」机制退役） -->
+    <string name="exterior_setting_ui_bg_default">默认（自动切换昼夜）</string>
     <string name="exterior_setting_ui_bg_classic">黑夜</string>
     <string name="exterior_setting_ui_bg_day">白天</string>
     <string name="exterior_setting_ui_bg_custom">自定义</string>
@@ -1377,7 +1378,8 @@
     <!-- ★ Phase 1.5 批 2：FCL ThemeEngine 主题区（外观设置页） -->
     <string name="fcl_theme_group_title">FCL 主题</string>
     <string name="fcl_theme_mode">主题模式</string>
-    <string name="fcl_theme_mode_auto">自动（现实时间）</string>
+    <!-- ★ Phase 1.5 批 4：现实时间机制退役，0 档语义 = 跟随系统深色模式（FCL 原件） -->
+    <string name="fcl_theme_mode_auto">自动（跟随系统）</string>
     <string name="fcl_theme_mode_light">亮色</string>
     <string name="fcl_theme_mode_dark">暗色</string>
     <string name="fcl_theme_color">主色（亮色）</string>

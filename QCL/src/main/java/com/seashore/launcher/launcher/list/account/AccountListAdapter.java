@@ -186,7 +186,7 @@ public class AccountListAdapter extends BaseAdapter {
             viewHolder.delete = convertView.findViewById(R.id.delete);
             viewHolder.refreshProgress = convertView.findViewById(R.id.refresh_account_progress);
             viewHolder.uploadProgress = convertView.findViewById(R.id.upload_skin_progress);
-            activity.exteriorConfig.apply(viewHolder.check);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             convertView.setTag(viewHolder);
         }
         else {

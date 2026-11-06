@@ -1943,11 +1943,12 @@ public static void markLocalCapeChanged() {
         changeIcon(versionIcon, themePath, "versionIcon");
         if (new File(themePath,"color.json").exists()) {
             try {
+                // ★ Phase 1.5 批 4：ATE（exteriorConfig）退役 —— 外置主题包的
+                //   color.json 改走「直接重染」：primaryColor 作为色源对当前界面跑一遍
+                //   ThemeRefreshUtils.apply（accentColor 与 primaryColor 原本就同值写入）。
                 JSONObject jsonObject = new JSONObject(FileUtils.readText(new File(themePath,"color.json")));
-                activity.exteriorConfig.primaryColor(Color.parseColor(jsonObject.getString("primaryColor")));
-                activity.exteriorConfig.accentColor(Color.parseColor(jsonObject.getString("accentColor")));
-                activity.exteriorConfig.apply(activity);
-                // 1.0.6：顶部标题栏已移除，主题色不再需要刷到 appBar。
+                int primaryColor = Color.parseColor(jsonObject.getString("primaryColor"));
+                com.seashore.launcher.utils.ui.ThemeRefreshUtils.apply(activity, primaryColor);
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(activity, e.toString(), Toast.LENGTH_SHORT).show();

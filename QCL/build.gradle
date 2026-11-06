@@ -286,7 +286,8 @@ dependencies {
     implementation project(path: ':ZipTools')
     implementation project(path: ':PojavLauncher')
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.github.naman14:app-theme-engine:0.5.2@aar'
+    // ★ Phase 1.5 批 4：QCL 主题链退役 —— app-theme-engine（ATE）依赖删除，
+    //   主题色唯一色源 = fcllibrary ThemeEngine。
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'org.nanohttpd:nanohttpd:2.3.1'

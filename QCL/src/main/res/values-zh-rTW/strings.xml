@@ -669,7 +669,8 @@
     <string name="exterior_setting_ui_theme">主題</string>
     <string name="exterior_setting_ui_full_screen">忽略劉海屏</string>
     <string name="exterior_setting_ui_bg_title">背景地址</string>
-    <string name="exterior_setting_ui_bg_default">默認（按時間自動切換晝夜）</string>
+    <!-- ★ Phase 1.5 批 4：晝夜判定改跟隨系統亮暗（原「按時間」機制退役） -->
+    <string name="exterior_setting_ui_bg_default">默認（自動切換晝夜）</string>
     <string name="exterior_setting_ui_bg_classic">黑夜</string>
     <string name="exterior_setting_ui_bg_day">白天</string>
     <string name="exterior_setting_ui_bg_custom">自定義</string>

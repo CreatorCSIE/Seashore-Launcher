@@ -232,9 +232,9 @@ public class DownloadModUI extends BaseUI implements View.OnClickListener, Adapt
             // ★ 1.5.2：筛选按钮同步主题色（用户反馈「筛选没同步主题颜色」）
             try {
                 if (this.toggleFilter instanceof android.widget.TextView) {
-                    // ★ getThemeColor 返回 String，必须再 parse 成 int
-                    int tc = ExteriorSettingUI.parseThemeColorSafe(this.activity,
-                            this.activity.launcherSetting.launcherTheme);
+                    // ★ Phase 1.5 批 4：色源改 ThemeEngine（currentThemeColor 直接返回 int）
+                    int tc = com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                            .currentThemeColor(this.activity);
                     ((android.widget.TextView) this.toggleFilter).setTextColor(tc);
                 }
             } catch (Throwable ignored) {

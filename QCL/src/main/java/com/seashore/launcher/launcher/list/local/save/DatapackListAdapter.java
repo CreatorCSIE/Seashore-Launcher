@@ -1,7 +1,6 @@
 package com.seashore.launcher.launcher.list.local.save;
 
-import static com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI.getThemeColor;
-
+// ★ Phase 1.5 批 4：getThemeColor 静态导入已退役，色源改 ThemeRefreshUtils.currentThemeColor
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
@@ -80,7 +79,7 @@ public class DatapackListAdapter extends BaseAdapter {
             if (!ui.packs.contains(pack)) {
                 ui.packs.add(pack);
             }
-            int themeColor = Color.parseColor(getThemeColor(context,activity.launcherSetting.launcherTheme));
+            int themeColor = com.seashore.launcher.utils.ui.ThemeRefreshUtils.currentThemeColor(context);
             float[] hsv = new float[3];
             Color.colorToHSV(themeColor, hsv);
             hsv[1] -= (1 - hsv[1]) * 0.3f;

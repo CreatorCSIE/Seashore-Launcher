@@ -122,7 +122,7 @@ public class DownloadGameListAdapter extends BaseAdapter {
             viewHolder.type = (TextView) view2.findViewById(R.id.type);
             viewHolder.releaseTime = (TextView) view2.findViewById(R.id.release_time);
             viewHolder.wiki = (ImageView) view2.findViewById(R.id.wiki);
-            this.activity.exteriorConfig.apply(viewHolder.type);
+            // ★ Phase 1.5 批 4：ATE 退役，exteriorConfig.apply(view) 行删除
             view2.setTag(viewHolder);
         } else {
             view2 = view;

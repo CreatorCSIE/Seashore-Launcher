@@ -83,7 +83,9 @@ public class InitializeSetting {
         //       手动指定的 fixSourceType 本来就是 0（官方），两者现在一致。
         //   ★ 只改**全新安装**的默认值；已在用 BMCLAPI 的玩家其 settings.json 里已存了旧值，
         //     不受影响（可在「设置 → 下载源」里改回来）。
-        LauncherSetting launcherSetting = new LauncherSetting(AppManifest.DEFAULT_GAME_DIR, new SourceSetting(true, 0, 0), 0, 64, false, true, false, false, false, "DEFAULT", "DEFAULT", new BackgroundSetting(1, "", ""), AppManifest.DEFAULT_CACHE_DIR);
+        // ★ Phase 1.5 批 4：launcherTheme 参数已删（13 参 → 12 参），
+        //   保留的 "DEFAULT" 是 panelColor。
+        LauncherSetting launcherSetting = new LauncherSetting(AppManifest.DEFAULT_GAME_DIR, new SourceSetting(true, 0, 0), 0, 64, false, true, false, false, false, "DEFAULT", new BackgroundSetting(1, "", ""), AppManifest.DEFAULT_CACHE_DIR);
         GsonUtils.saveLauncherSetting(launcherSetting, AppManifest.SETTING_DIR + "/launcher_setting.json");
         return launcherSetting;
     }

@@ -16,7 +16,9 @@ public class LauncherSetting {
     public boolean getBetaVersion;
     public int language;
     public BackgroundSetting launcherBackground;
-    public String launcherTheme;
+    // ★ Phase 1.5 批 4：launcherTheme 字段已退役 —— QCL 主题链下线，
+    //   主题色唯一色源 = FCL ThemeEngine（SP "launcher" + FCL 主题存档）。
+    //   老 launcher_setting.json 里残留的 launcherTheme 键会被 Gson 自动忽略，不迁移。
     public int maxDownloadTask;
     public String panelColor;
 
@@ -110,7 +112,8 @@ public class LauncherSetting {
      */
     public int lastLaunchPromptAt;
 
-    public LauncherSetting(String str, SourceSetting sourceSetting, int i, int i2, boolean z, boolean z2, boolean z3, boolean z4, boolean z5, String str2, String str3, BackgroundSetting backgroundSetting, String str4) {
+    // ★ Phase 1.5 批 4：原第 10 个参数 str2（launcherTheme）已删 —— 13 参 → 12 参。
+    public LauncherSetting(String str, SourceSetting sourceSetting, int i, int i2, boolean z, boolean z2, boolean z3, boolean z4, boolean z5, String str3, BackgroundSetting backgroundSetting, String str4) {
         this.gameFileDirectory = str;
         this.downloadUrlSource = sourceSetting;
         this.language = i;
@@ -119,7 +122,6 @@ public class LauncherSetting {
         this.autoCheckUpdate = z2;
         this.getBetaVersion = z3;
         this.fullscreen = z4;
-        this.launcherTheme = str2;
         this.panelColor = str3;
         this.launcherBackground = backgroundSetting;
         this.cachePath = str4;

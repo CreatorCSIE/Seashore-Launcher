@@ -159,8 +159,9 @@ public class SkinLibraryDialog extends Dialog implements View.OnClickListener {
         // ★★★ 1.5.0：把所有按钮染成「深色底 + 浅色字」，底色跟随玩家自定义主题色。
         //   drawable 只给深色形状，颜色在这里动态染（见 SkinDialogUtils 的踩坑注释）。
         try {
-            String theme = (activity != null && activity.launcherSetting != null)
-                    ? activity.launcherSetting.launcherTheme : null;
+            // ★ Phase 1.5 批 4：色源改 ThemeEngine（currentThemeColor）
+            int theme = com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                    .currentThemeColor(context);
             com.seashore.launcher.utils.string.SkinDialogUtils.tintAll(context,
                     (android.view.View) findViewById(android.R.id.content), theme);
         } catch (Throwable ignored) {

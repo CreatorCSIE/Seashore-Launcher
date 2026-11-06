@@ -607,16 +607,10 @@ public class LaunchCheckDialog extends Dialog implements View.OnClickListener, H
 
     // =================★ 2026-10-09：主题色绑定 + 模组/游戏版本预检 + 统一弹窗出口=================
 
-    /** 当前主题色（读到设置里的 launcherTheme；取不到回默认斑驳森林色）。 */
+    /** 当前主题色。★ Phase 1.5 批 4：色源从 launcherTheme 改为 ThemeEngine
+     *  （currentThemeColor 自带兜底，取不到回默认斑驳森林色）。 */
     private int themeColor() {
-        try {
-            // ★ 注意：ExteriorSettingUI.getThemeColor 返回的是**字符串**（如 "#FF556980"），必须解析
-            String s = com.seashore.launcher.launcher.uis.universal.setting.right.launcher.ExteriorSettingUI
-                    .getThemeColor(getContext(), this.activity.launcherSetting.launcherTheme);
-            return android.graphics.Color.parseColor(s);
-        } catch (Throwable t) {
-            return 0xFF865D58;
-        }
+        return com.seashore.launcher.utils.ui.ThemeRefreshUtils.currentThemeColor(getContext());
     }
 
     /**

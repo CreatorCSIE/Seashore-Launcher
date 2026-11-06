@@ -109,10 +109,11 @@ public class MicrosoftAccountSkinDialog extends Dialog implements View.OnClickLi
 
         // ★★★ 1.5.0：所有按钮染成「深色底 + 浅色字」，底色跟随玩家主题色（见 SkinDialogUtils）
         try {
+            // ★ Phase 1.5 批 4：色源改 ThemeEngine（currentThemeColor）
             com.seashore.launcher.utils.string.SkinDialogUtils.tintAll(getContext(),
                     (android.view.View) findViewById(android.R.id.content),
-                    (activity != null && activity.launcherSetting != null)
-                            ? activity.launcherSetting.launcherTheme : null);
+                    com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                            .currentThemeColor(getContext()));
         } catch (Throwable ignored) {
         }
 
@@ -683,22 +684,15 @@ public class MicrosoftAccountSkinDialog extends Dialog implements View.OnClickLi
     }
 
     /**
-     * ★ 2026-10-11：取当前主题色设置字符串（给动态创建的按钮染色用）。
+     * ★ 2026-10-11：取当前主题色（给动态创建的按钮染色用）。
      *
-     * <p>口径与 init() 里那次 {@code tintAll(...)} 完全一致 ——
-     * 都读 {@code activity.launcherSetting.launcherTheme}，
-     * 这样**动态加的按钮和静态按钮颜色必然一样**（用户要求"跟主题色一模一样"）。
-     * 读不到就返回 null，由 {@link com.seashore.launcher.utils.string.SkinDialogUtils}
-     * 回退到项目默认 colorAccent（它的 resolveThemeColor 已处理）。
+     * <p>★ Phase 1.5 批 4：launcherTheme 退役 —— 改走 ThemeEngine，
+     * 口径与 init() 里那次 {@code tintAll(...)} 完全一致，
+     * **动态加的按钮和静态按钮颜色必然一样**（用户要求"跟主题色一模一样"）。
+     * 兜底由 {@code ThemeRefreshUtils.currentThemeColor} 内部处理。
      */
-    private String themeColorNow() {
-        try {
-            if (activity != null && activity.launcherSetting != null) {
-                return activity.launcherSetting.launcherTheme;
-            }
-        } catch (Throwable ignored) {
-        }
-        return null;
+    private int themeColorNow() {
+        return com.seashore.launcher.utils.ui.ThemeRefreshUtils.currentThemeColor(getContext());
     }
 
     private void uploadSkin(String path) {        setLoading(true);

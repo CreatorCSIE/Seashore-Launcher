@@ -170,13 +170,12 @@ implements View.OnClickListener {
         this.positive = (Button)this.activity.findViewById(R.id.edit_skin_positive);
         this.negative = (Button)this.activity.findViewById(R.id.cancel_edit_skin);
         // ★★★ 1.5.0：确定 / 取消按钮染成「深色底 + 浅色字」，底色跟随玩家主题色
+        //   ★ Phase 1.5 批 4：色源改 ThemeEngine（currentThemeColor）
         try {
-            com.seashore.launcher.utils.string.SkinDialogUtils.tintButton(this.context, this.positive,
-                    (this.activity != null && this.activity.launcherSetting != null)
-                            ? this.activity.launcherSetting.launcherTheme : null);
-            com.seashore.launcher.utils.string.SkinDialogUtils.tintButton(this.context, this.negative,
-                    (this.activity != null && this.activity.launcherSetting != null)
-                            ? this.activity.launcherSetting.launcherTheme : null);
+            int theme = com.seashore.launcher.utils.ui.ThemeRefreshUtils
+                    .currentThemeColor(this.context);
+            com.seashore.launcher.utils.string.SkinDialogUtils.tintButton(this.context, this.positive, theme);
+            com.seashore.launcher.utils.string.SkinDialogUtils.tintButton(this.context, this.negative, theme);
         } catch (Throwable ignored) {
         }
         this.littleSkinUrl = (TextView)this.activity.findViewById(R.id.little_skin_url);
